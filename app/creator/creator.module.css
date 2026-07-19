@@ -312,9 +312,8 @@
 .headerIdentity { min-width: 0; gap: 18px; }
 .headerBrand { display: inline-flex; flex: 0 0 auto; font-size: 20px; line-height: 1; }
 .headerDivider { width: 1px; height: 28px; background: var(--studio-line); }
-.headerIdentity > div:last-child { min-width: 0; align-items: flex-start; flex-direction: column; gap: 4px; }
+.headerIdentity > div:last-child { min-width: 0; }
 .headerIdentity strong { font-size: 13px; font-weight: 540; letter-spacing: -0.02em; }
-.headerIdentity > div:last-child span { color: var(--studio-muted); font: 9px var(--font-mono), monospace; letter-spacing: 0.08em; text-transform: uppercase; }
 
 .creditCluster { justify-content: flex-end; gap: 9px; }
 
@@ -368,35 +367,13 @@
 
 .purchaseButton:hover { background: var(--studio-acid); color: #11150b; }
 
-.userMenu {
+.signOutButton {
+  width: 39px;
   height: 39px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
   margin-left: 5px;
-}
-
-.userMenu > img,
-.userMenu > span {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(197, 255, 92, 0.22);
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(197, 255, 92, 0.17), rgba(117, 87, 255, 0.18));
-  color: var(--studio-text);
-  object-fit: cover;
-  font-size: 11px;
-  font-weight: 650;
-}
-
-.userMenu button {
-  width: 31px;
-  height: 31px;
-  display: grid;
-  place-items: center;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -404,7 +381,7 @@
   cursor: pointer;
 }
 
-.userMenu button:hover { color: var(--studio-acid); background: rgba(197, 255, 92, 0.06); }
+.signOutButton:hover { color: var(--studio-acid); background: rgba(197, 255, 92, 0.06); }
 
 .studioGrid {
   min-height: calc(100dvh - 76px);
@@ -434,26 +411,17 @@
 
 .studioGridActive .controlPanel { animation: studioConfigLeft 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
 
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 42px;
-  color: var(--studio-muted);
-  font-size: 11px;
-}
-
-.backLink:hover { color: var(--studio-acid); }
-
 .panelHeading h1 {
   margin: 11px 0 14px;
   font-size: clamp(40px, 4.5vw, 62px);
   font-weight: 480;
   line-height: 0.94;
   letter-spacing: -0.065em;
+  white-space: nowrap;
 }
 
 .panelHeading h1 em { color: var(--studio-acid); font-style: normal; }
+.studioGridActive .panelHeading h1 { font-size: clamp(25px, 2.15vw, 29px); }
 
 .panelHeading > p {
   max-width: 520px;
@@ -1426,12 +1394,9 @@
   .balanceCard { margin-left: 0; }
   .purchaseButton { width: 40px; height: 40px; padding: 0; }
   .purchaseButton { font-size: 0; }
-  .userMenu { margin-left: auto; }
-  .userMenu > img,
-  .userMenu > span { display: none; }
+  .signOutButton { margin-left: auto; }
   .controlPanel { padding: 26px 18px 36px; }
-  .backLink { margin-bottom: 27px; }
-  .panelHeading h1 { font-size: 43px; }
+  .panelHeading h1 { font-size: clamp(25px, 7.2vw, 36px); }
   .selectGrid { grid-template-columns: 1fr; }
   .previewHeader { padding-inline: 18px; }
   .progressReadout span { display: none; }

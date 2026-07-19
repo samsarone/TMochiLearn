@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   CircleDollarSign,
@@ -771,7 +770,6 @@ export default function CreatorStudio({
           <span className={styles.headerDivider} />
           <div>
             <strong>Creator Studio</strong>
-            <span>Interactive cinema engine</span>
           </div>
         </div>
         <div className={styles.creditCluster}>
@@ -786,23 +784,17 @@ export default function CreatorStudio({
           <button className={styles.purchaseButton} type="button" onClick={() => window.location.assign(billingUrl())}>
             <WalletCards size={15} /> <span>Purchase credits</span>
           </button>
-          <div className={styles.userMenu} title={user.email || user.displayName}>
-            {user.avatarUrl ? (
-              // Remote account avatars can come from multiple identity providers.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatarUrl} alt="" />
-            ) : <span>{user.displayName.slice(0, 1).toUpperCase()}</span>}
-            <button type="button" onClick={() => void signOut()} aria-label="Sign out"><LogOut size={15} /></button>
-          </div>
+          <button className={styles.signOutButton} type="button" onClick={() => void signOut()} aria-label="Sign out" title="Sign out">
+            <LogOut size={15} />
+          </button>
         </div>
       </header>
 
       <div className={`${styles.studioGrid} ${renderStarted ? styles.studioGridActive : styles.studioGridDraft}`}>
         <aside className={styles.controlPanel}>
           <div className={styles.panelHeading}>
-            <Link href="/" className={styles.backLink}><ArrowLeft size={14} /> Public feed</Link>
             <span className={styles.eyebrow}>Build a new transmission</span>
-            <h1>Direct every<br /><em>possible path.</em></h1>
+            <h1>Direct every <em>possible path.</em></h1>
             <p>Describe one premise. tMochi builds its story tree, renders every branch, and keeps the timing connected.</p>
           </div>
 

@@ -195,6 +195,10 @@ test("wires Creator Studio to shared auth, unified generation, detailed polling,
   assert.doesNotMatch(studio, /zipSync/);
   assert.match(studio, /Download artifacts/);
   assert.match(studio, /Purchase credits/);
+  assert.doesNotMatch(studio, /Interactive cinema engine/);
+  assert.doesNotMatch(studio, /Public feed/);
+  assert.doesNotMatch(studio, /avatarUrl/);
+  assert.match(studio, /Direct every <em>possible path\.<\/em>/);
   assert.match(branchPreview, /audio_timeline/);
   assert.match(branchPreview, /chooseRandomPath/);
   assert.match(branchTree, /leaf_path_ids/);
