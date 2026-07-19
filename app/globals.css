@@ -137,16 +137,20 @@ footer > span { justify-self: end; font: 9px var(--font-mono); text-transform: u
 .player-topbar button:hover, .control-row button:hover { color: var(--acid); background: rgba(197,255,92,.09); }
 .switch-loader { position: absolute; z-index: 5; inset: 0; display: grid; place-items: center; align-content: center; gap: 12px; background: rgba(0,0,0,.35); color: #b8c2b3; font: 9px var(--font-mono); text-transform: uppercase; letter-spacing: .13em; }
 .switch-loader svg { color: var(--acid); animation: spin 1s linear infinite; }
-.choice-overlay { position: absolute; z-index: 6; inset: 0; overflow: hidden; background: #050605; animation: fade-in .28s ease; }
+.choice-prompt { position: absolute; z-index: 6; left: 50%; bottom: max(86px,calc(72px + env(safe-area-inset-bottom))); display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-radius: 999px; background: rgba(7,9,7,.74); color: #f1f5ef; font: 10px var(--font-mono); letter-spacing: .035em; box-shadow: 0 10px 34px rgba(0,0,0,.28); backdrop-filter: blur(12px); transform: translateX(-50%); animation: choice-prompt-in .24s ease both; pointer-events: none; white-space: nowrap; }
+.choice-prompt svg { color: var(--acid); }
+.choice-overlay { position: absolute; z-index: 6; inset: 0; overflow: hidden; background: #050605; animation: choice-overlay-in .28s cubic-bezier(.22,.7,.24,1) both; }
+.choice-overlay.is-previewing { pointer-events: none; }
 .choice-heading { position: absolute; z-index: 4; top: 15%; left: 50%; width: min(90%,680px); transform: translateX(-50%); text-align: center; pointer-events: none; filter: drop-shadow(0 2px 14px rgba(0,0,0,.9)); }
 .choice-heading h2 { margin: 0 0 5px; font-size: clamp(24px,3vw,44px); letter-spacing: -.055em; font-weight: 520; }
 .choice-heading p { color: #d1d8ce; font-size: 11px; margin: 0; }
 .choice-heading.is-followup p { color: var(--text); font-size: clamp(13px,1.35vw,18px); font-weight: 520; }
 .choice-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--choice-count,2),minmax(0,1fr)); }
-.choice-card { position: relative; min-width: 0; height: 100%; overflow: hidden; border: 0; border-right: 1px solid rgba(255,255,255,.2); background: #0d100d; padding: 0; text-align: left; cursor: pointer; transition: filter .3s ease; }
-.choice-card:last-child { border-right: 0; }
-.choice-card::after { content: ""; position: absolute; inset: 0; border: 1px solid transparent; pointer-events: none; transition: border-color .25s ease, box-shadow .25s ease; }
-.choice-card:hover::after, .choice-card:focus-visible::after { border-color: rgba(197,255,92,.75); box-shadow: inset 0 0 45px rgba(197,255,92,.08); }
+.choice-card { position: relative; min-width: 0; height: 100%; overflow: hidden; border: 0; background: #0d100d; padding: 0; text-align: left; cursor: pointer; transition: filter .3s ease; }
+.choice-card:disabled { cursor: default; }
+.choice-card::after { content: ""; position: absolute; inset: 0; pointer-events: none; transition: box-shadow .25s ease; }
+.choice-card:hover::after, .choice-card:focus-visible::after { box-shadow: inset 0 0 45px rgba(197,255,92,.1); }
+.choice-card:focus-visible { outline: none; filter: brightness(1.08); }
 .choice-card img { width: 100%; height: 100%; object-fit: cover; transition: transform .5s ease; }
 .choice-card:hover img { transform: scale(1.04); }
 .choice-card-shade { position: absolute; inset: 0; background: linear-gradient(to top,rgba(0,0,0,.92),transparent 53%), linear-gradient(to bottom,rgba(0,0,0,.55),transparent 38%), linear-gradient(90deg,rgba(0,0,0,.14),transparent 35%,rgba(0,0,0,.14)); transition: background .3s ease; }
@@ -171,6 +175,9 @@ footer > span { justify-self: end; font: 9px var(--font-mono); text-transform: u
 .control-row .rate-button { width: 42px; border-radius: 12px; font: 9px var(--font-mono); }
 .path-readout { display: flex; align-items: center; gap: 7px; color: #899185; font: 8px var(--font-mono); text-transform: uppercase; letter-spacing: .08em; }
 .path-readout svg { color: var(--acid); }
+
+@keyframes choice-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes choice-prompt-in { from { opacity: 0; transform: translate(-50%,8px); } to { opacity: 1; transform: translate(-50%,0); } }
 
 .player-route-state { position: fixed; z-index: 110; inset: 0; min-height: 100dvh; display: grid; place-items: center; align-content: center; gap: 13px; padding: 24px; text-align: center; background: radial-gradient(circle at center,rgba(197,255,92,.055),transparent 32%),#050605; }
 .player-route-state svg { color: var(--acid); }

@@ -48,11 +48,13 @@ type PendingResume = {
 type BoundaryWatch = {
   video: HTMLVideoElement;
   frameCallbackId?: number;
+  previewTimeoutId?: number;
   timeoutId?: number;
 };
 
 const MEDIA_WAIT_TIMEOUT_MS = 12_000;
-const BOUNDARY_GUARD_SECONDS = 0.012;
+const CHOICE_FADE_LEAD_SECONDS = 0.02;
+const CHOICE_PROMPT_LEAD_SECONDS = 5;
 
 const formatTime = (seconds: number) => {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -131,6 +133,7 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
   );
   const [activePathId, setActivePathId] = useState(defaultPath?.path_id ?? "");
   const [pendingChoice, setPendingChoice] = useState<IndexedChoice | null>(null);
+  const [previewChoice, setPreviewChoice] = useState<IndexedChoice | null>(null);
   const [handledChoices, setHandledChoices] = useState<string[]>([]);
   const [playing, setPlaying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -184,6 +187,7 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
   const clearBoundaryWatch = useCallback(() => {
     const watch = boundaryWatchRef.current;
     if (!watch) return;
+    if (watch.previewTimeoutId !== undefined) window.clearTimeout(watch.previewTimeoutId);
     if (watch.timeoutId !== undefined) window.clearTimeout(watch.timeoutId);
     if (
       watch.frameCallbackId !== undefined &&
@@ -322,6 +326,7 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
       previous.includes(pendingChoice.key) ? previous : [...previous, pendingChoice.key],
     );
     setPendingChoice(null);
+    setPreviewChoice(null);
     setSwitching(target.path_id !== resolvedActivePathId);
     setActivePathId(target.path_id);
     syncAndPlay(target, mediaTime, true);
@@ -336,6 +341,7 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
     presentedChoiceKeyRef.current = null;
     setHandledChoices([]);
     setPendingChoice(null);
+    setPreviewChoice(null);
     setMediaError(null);
     setSwitching(defaultPath.path_id !== resolvedActivePathId);
     setActivePathId(defaultPath.path_id);
@@ -394,6 +400,7 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
       video.pause();
       video.currentTime = clampMediaTime(switchAt, activePath, video);
       setCurrentTime(switchAt);
+      setPreviewChoice(choice);
       setPendingChoice(choice);
       setSwitching(false);
     },
@@ -410,6 +417,17 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
 
     const watch: BoundaryWatch = { video };
     boundaryWatchRef.current = watch;
+    const previewAt = Math.max(0, switchAt - CHOICE_FADE_LEAD_SECONDS);
+    const showPreview = () => {
+      if (
+        boundaryWatchRef.current !== watch ||
+        video.paused ||
+        activePathIdRef.current !== resolvedActivePathId
+      ) {
+        return;
+      }
+      setPreviewChoice(nextChoice);
+    };
     const stopAtBoundary = () => {
       if (
         boundaryWatchRef.current !== watch ||
@@ -422,25 +440,25 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
     };
 
     const remainingSeconds = Math.max(0, switchAt - video.currentTime);
+    const previewRemainingSeconds = Math.max(0, previewAt - video.currentTime);
+    watch.previewTimeoutId = window.setTimeout(
+      showPreview,
+      (previewRemainingSeconds / Math.max(0.1, video.playbackRate)) * 1_000,
+    );
     watch.timeoutId = window.setTimeout(
       stopAtBoundary,
-      Math.max(
-        0,
-        (remainingSeconds / Math.max(0.1, video.playbackRate)) * 1_000 -
-          BOUNDARY_GUARD_SECONDS * 1_000,
-      ),
+      (remainingSeconds / Math.max(0.1, video.playbackRate)) * 1_000,
     );
 
     if (typeof video.requestVideoFrameCallback === "function") {
       const inspectFrame: VideoFrameRequestCallback = (_now, metadata) => {
         if (boundaryWatchRef.current !== watch) return;
-        if (
-          Math.max(metadata.mediaTime, video.currentTime) >=
-          switchAt - BOUNDARY_GUARD_SECONDS
-        ) {
+        const mediaTime = Math.max(metadata.mediaTime, video.currentTime);
+        if (mediaTime >= switchAt) {
           stopAtBoundary();
           return;
         }
+        if (mediaTime >= previewAt) showPreview();
         watch.frameCallbackId = video.requestVideoFrameCallback(inspectFrame);
       };
       watch.frameCallbackId = video.requestVideoFrameCallback(inspectFrame);
@@ -464,7 +482,9 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
     setCurrentTime(mediaTime);
     if (!nextChoice || pendingChoice) return;
     const switchAt = nextChoice.point.switch_at_seconds;
-    if (switchAt === undefined || !Number.isFinite(switchAt) || mediaTime < switchAt) return;
+    if (switchAt === undefined || !Number.isFinite(switchAt)) return;
+    if (mediaTime >= switchAt - CHOICE_FADE_LEAD_SECONDS) setPreviewChoice(nextChoice);
+    if (mediaTime < switchAt) return;
     presentChoiceAtBoundary(video, pathId, nextChoice);
   };
 
@@ -505,6 +525,17 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
 
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const activeLabel = activePath?.branching_hint || activePath?.path_id || "Interactive path";
+  const displayedChoice = pendingChoice ?? previewChoice;
+  const secondsUntilChoice = nextChoice?.point.switch_at_seconds !== undefined
+    ? nextChoice.point.switch_at_seconds - currentTime
+    : Number.POSITIVE_INFINITY;
+  const showChoicePrompt = Boolean(
+    playing &&
+    nextChoice &&
+    !displayedChoice &&
+    secondsUntilChoice <= CHOICE_PROMPT_LEAD_SECONDS &&
+    secondsUntilChoice > CHOICE_FADE_LEAD_SECONDS,
+  );
 
   return (
     <div
@@ -571,7 +602,12 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
                   setMediaError(null);
                 }
               }}
-              onPause={() => isActive && setPlaying(false)}
+              onPause={() => {
+                if (isActive) {
+                  setPlaying(false);
+                  if (!presentedChoiceKeyRef.current) setPreviewChoice(null);
+                }
+              }}
               onEnded={() => isActive && setPlaying(false)}
               onError={(event) => {
                 if (isActive) {
@@ -611,17 +647,27 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
           </div>
         )}
 
-        {pendingChoice && (
-          <div className={styles.playerChoiceOverlay}>
+        {showChoicePrompt && (
+          <div className={styles.playerChoicePrompt} role="status">
+            <GitBranch size={14} />
+            <span>Choose the next path</span>
+          </div>
+        )}
+
+        {displayedChoice && (
+          <div
+            className={`${styles.playerChoiceOverlay} ${pendingChoice ? styles.playerChoiceReady : styles.playerChoicePreviewing}`}
+            aria-hidden={!pendingChoice}
+          >
             <div>
-              <span>Choice point {pendingChoice.point.level ? `· Level ${pendingChoice.point.level}` : ""}</span>
+              <span>Choice point {displayedChoice.point.level ? `· Level ${displayedChoice.point.level}` : ""}</span>
               <h2>Where does the story go?</h2>
             </div>
             <div
               className={styles.playerChoiceGrid}
-              style={{ "--choice-count": pendingChoice.point.options.length } as CSSProperties}
+              style={{ "--choice-count": displayedChoice.point.options.length } as CSSProperties}
             >
-              {pendingChoice.point.options.map((option, index) => {
+              {displayedChoice.point.options.map((option, index) => {
                 const target = targetForOption(option, paths, resolvedActivePathId, defaultPath.path_id);
                 const title = option.path_name || target?.branching_hint || `Path ${index + 1}`;
                 const description =
@@ -633,9 +679,9 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
                   <button
                     className={styles.playerChoice}
                     type="button"
-                    key={`${pendingChoice.key}-${option.child_node_id ?? index}`}
+                    key={`${displayedChoice.key}-${option.child_node_id ?? index}`}
                     onClick={() => chooseBranch(option)}
-                    disabled={!target}
+                    disabled={!target || !pendingChoice}
                     aria-label={`Choose ${title}`}
                   >
                     {thumbnail ? (

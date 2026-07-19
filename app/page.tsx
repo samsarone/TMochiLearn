@@ -46,6 +46,16 @@ type InteractivePlayerHandle = {
   playWithSound: () => Promise<void>;
 };
 
+type ChoiceTransitionWatch = {
+  video: HTMLVideoElement;
+  previewTimeoutId?: number;
+  boundaryTimeoutId?: number;
+  frameCallbackId?: number;
+};
+
+const CHOICE_FADE_LEAD_SECONDS = 0.02;
+const CHOICE_PROMPT_LEAD_SECONDS = 5;
+
 const publicationPath = (publicationId: string) =>
   `/watch/${encodeURIComponent(publicationId)}`;
 
@@ -215,6 +225,7 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
     paths[0];
   const [activePathId, setActivePathId] = useState(defaultPath?.path_id ?? "");
   const [pendingChoice, setPendingChoice] = useState<InteractivePublicationChoicePoint | null>(null);
+  const [previewChoice, setPreviewChoice] = useState<InteractivePublicationChoicePoint | null>(null);
   const [handledChoices, setHandledChoices] = useState<string[]>([]);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -234,6 +245,8 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
     rate: number;
   } | null>(null);
   const controlsTimerRef = useRef<number | null>(null);
+  const choiceTransitionWatchRef = useRef<ChoiceTransitionWatch | null>(null);
+  const presentedChoiceIdRef = useRef<string | null>(null);
   const activePath = paths.find((path) => path.path_id === activePathId) ?? defaultPath;
 
   const nextChoice = useMemo(() => {
@@ -273,6 +286,41 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
     () => videoElementsRef.current.get(activePathId) ?? null,
     [activePathId],
   );
+
+  const clearChoiceTransitionWatch = useCallback(() => {
+    const watch = choiceTransitionWatchRef.current;
+    if (!watch) return;
+    if (watch.previewTimeoutId !== undefined) window.clearTimeout(watch.previewTimeoutId);
+    if (watch.boundaryTimeoutId !== undefined) window.clearTimeout(watch.boundaryTimeoutId);
+    if (
+      watch.frameCallbackId !== undefined &&
+      typeof watch.video.cancelVideoFrameCallback === "function"
+    ) {
+      watch.video.cancelVideoFrameCallback(watch.frameCallbackId);
+    }
+    choiceTransitionWatchRef.current = null;
+  }, []);
+
+  const presentChoiceAtBoundary = useCallback((
+    video: HTMLVideoElement,
+    pathId: string,
+    choice: InteractivePublicationChoicePoint,
+  ) => {
+    if (
+      pathId !== activePathId ||
+      presentedChoiceIdRef.current === choice.branch_point_id
+    ) {
+      return;
+    }
+
+    presentedChoiceIdRef.current = choice.branch_point_id;
+    clearChoiceTransitionWatch();
+    video.currentTime = choice.switch_at_seconds;
+    video.pause();
+    setCurrentTime(choice.switch_at_seconds);
+    setPreviewChoice(choice);
+    setPendingChoice(choice);
+  }, [activePathId, clearChoiceTransitionWatch]);
 
   const playWithSound = useCallback(async () => {
     const video = getActiveVideo();
@@ -341,6 +389,73 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
   }, [clearControlsTimer, pendingChoice, playing, revealControls, switching]);
 
   useEffect(() => {
+    clearChoiceTransitionWatch();
+    if (!playing || pendingChoice || !nextChoice || switching) return;
+
+    const video = videoElementsRef.current.get(activePathId);
+    if (!video) return;
+
+    const watch: ChoiceTransitionWatch = { video };
+    choiceTransitionWatchRef.current = watch;
+    const switchAt = nextChoice.switch_at_seconds;
+    const previewAt = Math.max(0, switchAt - CHOICE_FADE_LEAD_SECONDS);
+    const showPreview = () => {
+      if (
+        choiceTransitionWatchRef.current !== watch ||
+        video.paused ||
+        activePathId !== video.dataset.pathId
+      ) {
+        return;
+      }
+      setPreviewChoice(nextChoice);
+    };
+    const stopAtBoundary = () => {
+      if (
+        choiceTransitionWatchRef.current !== watch ||
+        video.paused ||
+        activePathId !== video.dataset.pathId
+      ) {
+        return;
+      }
+      presentChoiceAtBoundary(video, activePathId, nextChoice);
+    };
+    const playbackRate = Math.max(0.1, video.playbackRate);
+    const previewDelay = Math.max(0, ((previewAt - video.currentTime) / playbackRate) * 1_000);
+    const boundaryDelay = Math.max(0, ((switchAt - video.currentTime) / playbackRate) * 1_000);
+
+    watch.previewTimeoutId = window.setTimeout(showPreview, previewDelay);
+    watch.boundaryTimeoutId = window.setTimeout(stopAtBoundary, boundaryDelay);
+
+    if (typeof video.requestVideoFrameCallback === "function") {
+      const inspectFrame: VideoFrameRequestCallback = (_now, metadata) => {
+        if (choiceTransitionWatchRef.current !== watch) return;
+        const mediaTime = Math.max(metadata.mediaTime, video.currentTime);
+        if (mediaTime >= switchAt) {
+          stopAtBoundary();
+          return;
+        }
+        if (mediaTime >= previewAt) showPreview();
+        watch.frameCallbackId = video.requestVideoFrameCallback(inspectFrame);
+      };
+      watch.frameCallbackId = video.requestVideoFrameCallback(inspectFrame);
+    }
+
+    return clearChoiceTransitionWatch;
+  }, [
+    activePathId,
+    clearChoiceTransitionWatch,
+    currentTime,
+    nextChoice,
+    pendingChoice,
+    playbackRate,
+    playing,
+    presentChoiceAtBoundary,
+    switching,
+  ]);
+
+  useEffect(() => clearChoiceTransitionWatch, [clearChoiceTransitionWatch]);
+
+  useEffect(() => {
     if (!nextChoice) return;
 
     const primeAt = nextChoice.switch_at_seconds + 0.04;
@@ -394,14 +509,8 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
   const handleTimeUpdate = (video: HTMLVideoElement, pathId: string) => {
     if (pathId !== activePathId) return;
     setCurrentTime(video.currentTime);
-    if (
-      nextChoice &&
-      video.currentTime >= nextChoice.switch_at_seconds - 0.12 &&
-      video.currentTime <= nextChoice.switch_at_seconds + 0.75
-    ) {
-      video.currentTime = nextChoice.switch_at_seconds;
-      video.pause();
-      setPendingChoice(nextChoice);
+    if (nextChoice && video.currentTime >= nextChoice.switch_at_seconds) {
+      presentChoiceAtBoundary(video, pathId, nextChoice);
     }
   };
 
@@ -417,8 +526,11 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
     if (!target || !video) return;
 
     const resumeAt = pendingChoice.switch_at_seconds + 0.04;
+    clearChoiceTransitionWatch();
+    presentedChoiceIdRef.current = null;
     setHandledChoices((previous) => [...previous, pendingChoice.branch_point_id]);
     setPendingChoice(null);
+    setPreviewChoice(null);
 
     if (target.path_id === activePathId) {
       video.currentTime = resumeAt;
@@ -483,8 +595,11 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
 
   const restart = () => {
     const video = getActiveVideo();
+    clearChoiceTransitionWatch();
+    presentedChoiceIdRef.current = null;
     setHandledChoices([]);
     setPendingChoice(null);
+    setPreviewChoice(null);
     if (activePathId !== defaultPath.path_id) {
       video?.pause();
       resumeRef.current = {
@@ -552,6 +667,18 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
     }
   };
 
+  const displayedChoice = pendingChoice ?? previewChoice;
+  const secondsUntilChoice = nextChoice
+    ? nextChoice.switch_at_seconds - currentTime
+    : Number.POSITIVE_INFINITY;
+  const showChoicePrompt = Boolean(
+    playing &&
+    nextChoice &&
+    !displayedChoice &&
+    secondsUntilChoice <= CHOICE_PROMPT_LEAD_SECONDS &&
+    secondsUntilChoice > CHOICE_FADE_LEAD_SECONDS,
+  );
+
   return (
     <div className="player-shell" role="dialog" aria-modal="true" aria-label={`Playing ${publication.title}`}>
       <div
@@ -606,7 +733,12 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
                 }
               }}
               onPlaying={() => isActive && setSwitching(false)}
-              onPause={() => isActive && setPlaying(false)}
+              onPause={() => {
+                if (isActive) {
+                  setPlaying(false);
+                  if (!presentedChoiceIdRef.current) setPreviewChoice(null);
+                }
+              }}
               onEnded={() => isActive && setPlaying(false)}
               onVolumeChange={isActive ? (event) => setMuted(event.currentTarget.muted) : undefined}
             />
@@ -629,17 +761,27 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
           </div>
         )}
 
-        {pendingChoice && (
-          <div className="choice-overlay">
+        {showChoicePrompt && (
+          <div className="choice-prompt" role="status">
+            <GitFork size={14} />
+            <span>Choose the next path</span>
+          </div>
+        )}
+
+        {displayedChoice && (
+          <div
+            className={`choice-overlay ${pendingChoice ? "is-ready" : "is-previewing"}`}
+            aria-hidden={!pendingChoice}
+          >
             <div className={`choice-heading ${handledChoices.length > 0 ? "is-followup" : ""}`}>
               {handledChoices.length === 0 && <h2>Where does the story go?</h2>}
               <p>Choose a path to continue</p>
             </div>
             <div
               className="choice-grid"
-              style={{ "--choice-count": pendingChoice.options.length } as React.CSSProperties}
+              style={{ "--choice-count": displayedChoice.options.length } as React.CSSProperties}
             >
-              {pendingChoice.options.map((option, index) => {
+              {displayedChoice.options.map((option, index) => {
                 const target = pathForOption(
                   option,
                   paths,
@@ -649,10 +791,11 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
                 const Arrow = index === 0 ? Undo2 : Redo2;
                 return (
                   <button
-                    key={`${pendingChoice.branch_point_id}-${option.child_node_id}`}
+                    key={`${displayedChoice.branch_point_id}-${option.child_node_id}`}
                     className={`choice-card ${index === 0 ? "choice-card-left" : "choice-card-right"}`}
                     type="button"
                     onClick={() => chooseBranch(option)}
+                    disabled={!pendingChoice}
                     aria-label={`Choose ${option.branching_hint || option.path_name || `path ${index + 1}`}`}
                   >
                     <img src={target?.thumbnailUrl || publication.mainThumbnailUrl} alt="" />
