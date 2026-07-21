@@ -157,7 +157,7 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(page, /history\.pushState/);
   assert.match(page, /href=\{publicationPath\(publication\.id\)\}/);
   assert.match(page, /limit: isLearn \? "200" : "30"/);
-  assert.match(page, /: isLearn\s+\? filtered\.filter/);
+  assert.match(page, /filtered\.filter\(\(publication\) => publication\.id !== featured\?\.id\)/);
   assert.doesNotMatch(page, /autoPlay=/);
   assert.doesNotMatch(page, /requestAnimationFrame/);
   assert.doesNotMatch(page, /rel="preload" as="video"/);

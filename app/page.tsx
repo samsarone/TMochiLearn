@@ -1830,9 +1830,7 @@ export default function Home({
   const hasSearch = Boolean(search.trim());
   const feedItems = hasSearch || selectedTopic
     ? filtered
-    : isLearn
-      ? filtered.filter((publication) => publication.id !== featured?.id)
-      : filtered;
+    : filtered.filter((publication) => publication.id !== featured?.id);
 
   const openPlayer = useCallback((
     publication: InteractivePublication,
