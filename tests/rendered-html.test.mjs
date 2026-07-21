@@ -109,6 +109,7 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(page, /poster-preview-video/);
   assert.match(page, /poster-tree-preview/);
   assert.match(page, /className="site-header watch-header"/);
+  assert.match(page, /onClick=\{returnToLandingFromLogo\}/);
   assert.match(page, /featured-title/);
   assert.doesNotMatch(page, /branch-leaf-hover/);
   assert.doesNotMatch(page, /aria-label=\{immersive \? "Return to standard view" : "Close player"\}/);

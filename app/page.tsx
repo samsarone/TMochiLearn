@@ -1402,6 +1402,21 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
     secondsUntilChoice > CHOICE_FADE_LEAD_SECONDS,
   );
 
+  const returnToLandingFromLogo = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    onClose();
+  };
+
   return (
     <div
       className={`player-shell ${immersive ? "is-immersive" : "is-standard"} ${playing && !controlsVisible ? "is-idle-playing" : ""}`}
@@ -1411,7 +1426,14 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
     >
       {!immersive && (
         <header className="site-header watch-header">
-          <Link className="brand" href="/" aria-label="TMochiLearn home"><TMochiLearnLogo /></Link>
+          <Link
+            className="brand"
+            href="/"
+            onClick={returnToLandingFromLogo}
+            aria-label="TMochiLearn home"
+          >
+            <TMochiLearnLogo />
+          </Link>
           <nav className="site-nav" aria-label="Main navigation">
             <Link href="/" aria-current="page">Watch</Link>
             <Link href="/learn">Explore</Link>
