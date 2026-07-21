@@ -32,6 +32,10 @@ test("server-renders the TMochiLearn interactive learning landing page", async (
   assert.match(html, /brand-cat-mark/i);
   assert.match(html, /tmochi-learn-logo\.png/i);
   assert.match(html, /brand-word[^>]*>TMochiLearn<\/span>/i);
+  assert.match(html, /featured-media-skeleton/i);
+  assert.match(html, /featured-panel-skeleton/i);
+  assert.match(html, /featured-title-skeleton/i);
+  assert.match(html, /film-card-skeleton/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
 
@@ -169,6 +173,9 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(styles, /\.branch-leaf-end \{[^}]*pointer-events: auto/);
   assert.match(styles, /\.flat-tree-node\.branch-leaf:not\(\.is-selected\) \{ animation: leaf-lock-cue/);
   assert.match(styles, /\.featured-title/);
+  assert.match(styles, /\.featured-tree-skeleton/);
+  assert.match(styles, /\.featured-poster-overlay \{ display: none; \}/);
+  assert.match(styles, /\.film-card-skeleton-copy/);
   assert.match(styles, /\.featured-media \{[^}]*aspect-ratio: 16\/9/);
   assert.match(styles, /\.site-header \.site-nav \{ margin-left: 8px/);
   assert.match(styles, /\.player-shell\.is-standard\.is-idle-playing/);

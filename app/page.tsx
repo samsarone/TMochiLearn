@@ -2068,13 +2068,17 @@ export default function Home({
         </>
       ) : (
         <>
-          <section className={`featured-landing ${featured ? "has-featured" : ""}`} id="top" aria-label="Featured interactive video">
+          <section className={`featured-landing ${featured || loading ? "has-featured" : ""}`} id="top" aria-label="Featured interactive video">
             <div className="featured-media">
               {featured ? (
                 <PublicationCard publication={featured} onPlay={openPlayer} featured prototype={isPrototype} />
+              ) : loading ? (
+                <div className="feature-placeholder featured-media-skeleton" aria-hidden="true">
+                  <span className="featured-skeleton-play" />
+                </div>
               ) : (
                 <div className="feature-placeholder">
-                  {loading ? <LoaderCircle size={26} /> : <Film size={28} />}
+                  <Film size={28} />
                 </div>
               )}
             </div>
@@ -2091,16 +2095,45 @@ export default function Home({
                 />
               </aside>
             )}
+            {!featured && loading && (
+              <aside className="featured-landing-panel featured-panel-skeleton" aria-hidden="true">
+                <div className="featured-skeleton-copy">
+                  <span className="is-heading" />
+                  <span className="is-heading is-short" />
+                  <div>
+                    <span />
+                    <span />
+                    <span className="is-short" />
+                  </div>
+                </div>
+                <div className="featured-tree-skeleton">
+                  <span className="featured-tree-skeleton-line" />
+                  {[0, 1, 2, 3, 4].map((node) => <span className="featured-tree-skeleton-node" key={node} />)}
+                </div>
+              </aside>
+            )}
           </section>
           {featured && (
             <div className="featured-title">
               <h1>{featured.title}</h1>
             </div>
           )}
+          {!featured && loading && (
+            <div className="featured-title featured-title-skeleton" aria-hidden="true"><span /></div>
+          )}
 
           <section className="explore-section catalog-grid-section" id="explore">
             {error && <div className="catalog-state"><Film size={28} /><h3>Signal interrupted</h3><p>{error}</p><button type="button" onClick={() => void loadPublications()}>Try again</button></div>}
-            {loading && <div className="film-grid" aria-label="Loading films">{[0, 1, 2, 3, 4, 5].map((item) => <div className="film-skeleton" key={item} />)}</div>}
+            {loading && (
+              <div className="film-grid" aria-label="Loading films">
+                {[0, 1, 2, 3, 4, 5].map((item) => (
+                  <article className="film-card film-card-skeleton" aria-hidden="true" key={item}>
+                    <div className="film-skeleton" />
+                    <div className="film-card-skeleton-copy"><span /><span /></div>
+                  </article>
+                ))}
+              </div>
+            )}
             {!loading && !error && feedItems.length > 0 && <div className="film-grid">{feedItems.map((publication) => <PublicationCard key={publication.id} publication={publication} onPlay={openPlayer} prototype={isPrototype} />)}</div>}
             {response?.hasMore && !search && <button className="load-more" type="button" disabled={loadingMore} onClick={() => response.nextCursor && void loadPublications(response.nextCursor)}>{loadingMore ? <LoaderCircle size={17} /> : <ChevronDown size={17} />}{loadingMore ? "Loading" : "Load more lessons"}</button>}
           </section>
