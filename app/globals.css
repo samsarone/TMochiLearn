@@ -646,10 +646,10 @@ footer > span { justify-self: end; font: 9px var(--font-mono); text-transform: u
 .player-shell.is-standard .player-stage { overflow: hidden; border-radius: 12px !important; }
 .player-shell.is-standard .branch-map { margin-top: 12px; }
 .player-shell.is-standard .watch-summary { margin-top: 12px; }
-.player-shell.is-standard .branch-map,.player-shell.is-standard .watch-summary { transition: opacity .34s ease,visibility 0s linear 0s; }
+.player-shell.is-standard .watch-header,.player-shell.is-standard .branch-map,.player-shell.is-standard .watch-summary { transition: opacity .34s ease,filter .34s ease; }
 .player-shell.is-standard.is-idle-playing { background: #020302; }
-.player-shell.is-standard.is-idle-playing .watch-header { height: 0 !important; border-color: transparent; opacity: 0; pointer-events: none; }
-.player-shell.is-standard.is-idle-playing .branch-map,.player-shell.is-standard.is-idle-playing .watch-summary { visibility: hidden; opacity: 0; pointer-events: none; transition: opacity .34s ease,visibility 0s linear .34s; }
+.player-shell.is-standard.is-idle-playing .watch-header { opacity: .16; filter: brightness(.55) saturate(.4); pointer-events: none; }
+.player-shell.is-standard.is-idle-playing .branch-map,.player-shell.is-standard.is-idle-playing .watch-summary { opacity: .12; filter: brightness(.5) saturate(.35); pointer-events: none; }
 .player-shell.is-standard.is-idle-playing .player-stage { cursor: none; box-shadow: 0 34px 110px rgba(0,0,0,.72),0 0 45px rgba(197,255,92,.035); }
 
 @media (min-width: 761px) {
