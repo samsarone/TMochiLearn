@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BookOpen,
   ChevronDown,
   Expand,
   Film,
@@ -24,16 +25,22 @@ import type {
   InteractivePublicationChoicePoint,
   InteractivePublicationVideoPath,
 } from "samsar-js";
+import Link from "next/link";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { flushSync } from "react-dom";
 import { TmochiLogo } from "../components/tmochi-logo";
 
 type PublicationResponse = {
-  items: InteractivePublication[];
+  items: CatalogPublication[];
   nextCursor: string | null;
   hasMore: boolean;
   totalCount?: number;
+};
+
+type CatalogPublication = InteractivePublication & {
+  categories?: string[];
+  topics?: string[];
 };
 
 type PublicationDetailResponse = {
@@ -91,7 +98,7 @@ const publicationIdFromLocation = () => {
   }
 };
 
-const demoPublication: InteractivePublication = {
+const demoPublication: CatalogPublication = {
   id: "tmochi-demo",
   type: "InteractiveVideo",
   schema: "interactive_publication.v1",
@@ -99,6 +106,8 @@ const demoPublication: InteractivePublication = {
   description:
     "A live player prototype. Follow the signal or leave the known path when the transmission fractures.",
   tags: ["sci-fi", "prototype"],
+  categories: ["Film & Animation"],
+  topics: ["interactive storytelling", "science fiction"],
   creatorHandle: "tMochi",
   datePublished: "2026-07-19T00:00:00.000Z",
   mainVideoUrl:
@@ -169,6 +178,18 @@ const demoPublication: InteractivePublication = {
   },
 };
 
+const learnDemoPublication: CatalogPublication = {
+  ...demoPublication,
+  id: "tmochi-learn-demo",
+  title: "Inside a Living Cell",
+  description:
+    "Choose a route through the cell and discover how its systems keep life in motion.",
+  tags: ["biology", "cells", "prototype"],
+  categories: ["Education", "Science & Technology"],
+  topics: ["cell biology", "life sciences", "human body"],
+  creatorHandle: "tMochi Learn",
+};
+
 const formatTime = (seconds: number) => {
   if (!Number.isFinite(seconds)) return "0:00";
   const rounded = Math.max(0, Math.floor(seconds));
@@ -237,6 +258,54 @@ function PublicationCard({
           <span>{formatTime(publication.duration)}</span>
         </div>
       )}
+    </article>
+  );
+}
+
+function LearnPublicationCard({
+  publication,
+  onPlay,
+  featured = false,
+}: {
+  publication: CatalogPublication;
+  onPlay: (
+    publication: InteractivePublication,
+    event: ReactMouseEvent<HTMLAnchorElement>,
+  ) => void;
+  featured?: boolean;
+}) {
+  const topics = publication.topics?.slice(0, featured ? 3 : 2) ?? [];
+  const branches = publication.manifest.outputs.paths.length;
+
+  return (
+    <article className={`learn-card ${featured ? "learn-card-featured" : ""}`}>
+      <a
+        className="learn-card-media"
+        href={publicationPath(publication.id)}
+        onClick={(event) => onPlay(publication, event)}
+        aria-label={`Start ${publication.title}`}
+      >
+        <img
+          src={publication.mainThumbnailUrl || publication.thumbnailUrl}
+          alt=""
+          loading={featured ? "eager" : "lazy"}
+          decoding="async"
+        />
+        <span className="learn-card-shade" />
+        <span className="learn-card-play"><Play size={featured ? 22 : 18} fill="currentColor" /></span>
+        <span className="learn-path-count"><GitFork size={12} /> {branches} paths</span>
+      </a>
+      <div className="learn-card-copy">
+        <div className="learn-topic-row">
+          {topics.map((topic) => <span key={topic}>{topic}</span>)}
+        </div>
+        <h3>{publication.title}</h3>
+        {featured && <p>{publication.description}</p>}
+        <div className="learn-card-meta">
+          <span>@{publication.creatorHandle || "unknown"}</span>
+          <span>{formatTime(publication.duration)}</span>
+        </div>
+      </div>
     </article>
   );
 }
@@ -1011,15 +1080,18 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
 export default function Home({
   initialPublicationId,
   initialPublication,
+  catalogMode = "home",
 }: {
   initialPublicationId?: string;
   initialPublication?: InteractivePublication;
+  catalogMode?: "home" | "learn";
 }) {
   const [response, setResponse] = useState<PublicationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selected, setSelected] = useState<InteractivePublication | null>(initialPublication ?? null);
   const [playerEntry, setPlayerEntry] = useState<PlayerEntry>(initialPublicationId ? "direct" : "internal");
   const [routeLoading, setRouteLoading] = useState(Boolean(initialPublicationId && !initialPublication));
@@ -1027,6 +1099,7 @@ export default function Home({
   const [creatingSession, setCreatingSession] = useState(false);
   const playerHandleRef = useRef<InteractivePlayerHandle>(null);
   const routeRequestRef = useRef(0);
+  const isLearn = catalogMode === "learn";
 
   const clearPlayerRoute = useCallback(() => {
     routeRequestRef.current += 1;
@@ -1040,8 +1113,8 @@ export default function Home({
 
   const returnToLanding = useCallback(() => {
     clearPlayerRoute();
-    window.history.replaceState(null, "", "/");
-  }, [clearPlayerRoute]);
+    window.history.replaceState(null, "", isLearn ? "/learn" : "/");
+  }, [clearPlayerRoute, isLearn]);
 
   const loadPublicationRoute = useCallback(async (publicationId: string) => {
     const requestId = ++routeRequestRef.current;
@@ -1078,7 +1151,8 @@ export default function Home({
     if (cursor) setLoadingMore(true);
     else setLoading(true);
     try {
-      const query = new URLSearchParams({ limit: "24" });
+      const query = new URLSearchParams({ limit: isLearn ? "200" : "24" });
+      if (isLearn) query.set("category", "Education");
       if (cursor) query.set("cursor", cursor);
       const request = await fetch(`/api/interactive-publications?${query}`);
       if (!request.ok) throw new Error("Catalog request failed");
@@ -1095,7 +1169,7 @@ export default function Home({
       setLoading(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [isLearn]);
 
   useEffect(() => {
     let active = true;
@@ -1130,17 +1204,40 @@ export default function Home({
     };
   }, [clearPlayerRoute, initialPublication?.id, initialPublicationId, loadPublicationRoute]);
 
-  const isPrototype = !loading && !error && response?.items.length === 0;
-  const publications = isPrototype ? [demoPublication] : response?.items ?? [];
+  const livePublications = response?.items ?? [];
+  const eligiblePublications = isLearn
+    ? livePublications.filter((publication) =>
+        publication.categories?.some((category) => category.trim().toLowerCase() === "education"),
+      )
+    : livePublications;
+  const isPrototype = !loading && !error && eligiblePublications.length === 0;
+  const publications = isPrototype
+    ? [isLearn ? learnDemoPublication : demoPublication]
+    : eligiblePublications;
+  const topicCounts = (() => {
+    const counts = new Map<string, number>();
+    publications.forEach((publication) => {
+      publication.topics?.forEach((topic) => counts.set(topic, (counts.get(topic) ?? 0) + 1));
+    });
+    return [...counts.entries()].sort((left, right) => right[1] - left[1]);
+  })();
   const filtered = publications.filter((publication) => {
-    const haystack = [publication.title, publication.description, publication.creatorHandle, ...publication.tags]
+    const haystack = [
+      publication.title,
+      publication.description,
+      publication.creatorHandle,
+      ...publication.tags,
+      ...(publication.categories ?? []),
+      ...(publication.topics ?? []),
+    ]
       .join(" ")
       .toLowerCase();
-    return haystack.includes(search.trim().toLowerCase());
+    return haystack.includes(search.trim().toLowerCase()) &&
+      (!selectedTopic || publication.topics?.includes(selectedTopic));
   });
   const featured = publications[0];
   const hasSearch = Boolean(search.trim());
-  const feedItems = hasSearch
+  const feedItems = hasSearch || selectedTopic
     ? filtered
     : filtered.filter((publication) => publication.id !== featured?.id);
 
@@ -1202,11 +1299,15 @@ export default function Home({
   }, [creatingSession]);
 
   return (
-    <main>
-      <header className="site-header">
-        <a className="brand" href="#top" aria-label="tMochi home">
+    <main className={isLearn ? "learn-page" : undefined}>
+      <header className={`site-header ${isLearn ? "learn-site-header" : ""}`}>
+        <Link className="brand" href={isLearn ? "/" : "#top"} aria-label="tMochi home">
           <TmochiLogo />
-        </a>
+        </Link>
+        <nav className="site-nav" aria-label="Main navigation">
+          <Link href="/" aria-current={!isLearn ? "page" : undefined}>Watch</Link>
+          <Link href="/learn" aria-current={isLearn ? "page" : undefined}>Learn</Link>
+        </nav>
         <button
           className="publish-button"
           type="button"
@@ -1218,114 +1319,160 @@ export default function Home({
         </button>
       </header>
 
-      <section className="hero" id="top">
-        <div className="hero-feature">
-          {featured ? (
-            <PublicationCard
-              publication={featured}
-              onPlay={openPlayer}
-              featured
-              prototype={isPrototype}
-            />
-          ) : (
-            <div className="feature-placeholder">
-              {loading ? <LoaderCircle size={26} /> : <Film size={28} />}
-              <span>{loading ? "Tuning the live feed" : "Awaiting the next premiere"}</span>
+      {isLearn ? (
+        <>
+          <section className="learn-hero" id="top">
+            <div>
+              <span className="eyebrow"><BookOpen size={13} /> Interactive learning library</span>
+              <h1>Choose what you<br /><em>learn next.</em></h1>
+              <p>Explore lessons that respond to your decisions. Every choice opens a new way to understand the subject.</p>
             </div>
-          )}
-          <div className="hero-overlay">
-            <h1>Don’t just watch. <em>Decide.</em></h1>
-            <p className="hero-summary">
-              <span className="hero-summary-line"><span>Stories that bend around your choices.</span></span>
-              <span className="hero-summary-line"><span>Every path is a different cut.</span></span>
-              <span className="hero-summary-line"><span>Every decision is yours.</span></span>
-            </p>
-          </div>
-        </div>
-      </section>
+            <div className="learn-hero-mark" aria-hidden="true">
+              <span>LEARN</span>
+              <GitFork size={27} />
+            </div>
+          </section>
 
-      <section className="explore-section" id="explore">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">Now transmitting</span>
-            <h2>Interactive stories</h2>
-          </div>
-          <div className="catalog-tools">
-            <label className="search-box">
-              <Search size={17} />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search stories"
-                aria-label="Search interactive stories"
-              />
-              {search && <button type="button" onClick={() => setSearch("")} aria-label="Clear search"><X size={14} /></button>}
-            </label>
-            <span className="catalog-count">
-              {isPrototype ? "Preview mode" : `${response?.totalCount ?? publications.length} films`}
-            </span>
-          </div>
-        </div>
+          <section className="learn-library" aria-label="Educational interactive content">
+            <aside className="learn-sidebar">
+              <span className="learn-sidebar-label">Explore topics</span>
+              <button
+                className={!selectedTopic ? "is-active" : undefined}
+                type="button"
+                onClick={() => setSelectedTopic(null)}
+              >
+                <span>All lessons</span><small>{publications.length}</small>
+              </button>
+              {topicCounts.map(([topic, count]) => (
+                <button
+                  className={selectedTopic === topic ? "is-active" : undefined}
+                  key={topic}
+                  type="button"
+                  onClick={() => setSelectedTopic(topic)}
+                >
+                  <span>{topic}</span><small>{count}</small>
+                </button>
+              ))}
+            </aside>
 
-        {isPrototype && (
-          <div className="prototype-note">
-            <span><Sparkles size={15} /></span>
-            <p><strong>The live catalog is ready.</strong> No films are published yet, so this prototype reel lets you test the branching player now.</p>
-          </div>
-        )}
+            <div className="learn-catalog">
+              <div className="learn-catalog-head">
+                <div>
+                  <span className="eyebrow">Curated for curiosity</span>
+                  <h2>{selectedTopic || "Featured learning"}</h2>
+                </div>
+                <label className="search-box learn-search">
+                  <Search size={17} />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search lessons and topics"
+                    aria-label="Search educational content"
+                  />
+                  {search && <button type="button" onClick={() => setSearch("")} aria-label="Clear search"><X size={14} /></button>}
+                </label>
+              </div>
 
-        {error && (
-          <div className="catalog-state">
-            <Film size={28} />
-            <h3>Signal interrupted</h3>
-            <p>{error}</p>
-            <button type="button" onClick={() => void loadPublications()}>Try again</button>
-          </div>
-        )}
+              {isPrototype && !loading && !error && (
+                <div className="prototype-note learn-prototype-note">
+                  <span><Sparkles size={15} /></span>
+                  <p><strong>Learn is ready for its first lesson.</strong> This clearly marked preview demonstrates the educational catalog and interactive player.</p>
+                </div>
+              )}
 
-        {loading && (
-          <div className="film-grid" aria-label="Loading films">
-            {[0, 1, 2].map((item) => <div className="film-skeleton" key={item} />)}
-          </div>
-        )}
+              {error && (
+                <div className="catalog-state">
+                  <BookOpen size={28} />
+                  <h3>Library unavailable</h3>
+                  <p>{error}</p>
+                  <button type="button" onClick={() => void loadPublications()}>Try again</button>
+                </div>
+              )}
 
-        {!loading && !error && feedItems.length > 0 && (
-          <div className="film-grid">
-            {feedItems.map((publication) => (
-              <PublicationCard
-                key={publication.id}
-                publication={publication}
-                onPlay={openPlayer}
-                prototype={isPrototype}
-              />
-            ))}
-          </div>
-        )}
+              {loading && (
+                <div className="learn-grid" aria-label="Loading lessons">
+                  {[0, 1, 2, 3, 4, 5].map((item) => <div className="film-skeleton" key={item} />)}
+                </div>
+              )}
 
-        {!loading && !error && hasSearch && feedItems.length === 0 && (
-          <div className="catalog-state compact">
-            <Search size={24} />
-            <h3>No matching timelines</h3>
-            <p>Try a different title, creator, or tag.</p>
-          </div>
-        )}
+              {!loading && !error && featured && !hasSearch && !selectedTopic && (
+                <div className="learn-feature">
+                  <LearnPublicationCard publication={featured} onPlay={openPlayer} featured />
+                </div>
+              )}
 
-        {response?.hasMore && !search && (
-          <button
-            className="load-more"
-            type="button"
-            disabled={loadingMore}
-            onClick={() => response.nextCursor && void loadPublications(response.nextCursor)}
-          >
-            {loadingMore ? <LoaderCircle size={17} /> : <ChevronDown size={17} />}
-            {loadingMore ? "Loading" : "Load more stories"}
-          </button>
-        )}
-      </section>
+              {!loading && !error && feedItems.length > 0 && (
+                <div className="learn-section-block">
+                  <div className="learn-row-heading">
+                    <h3>{hasSearch || selectedTopic ? "Matching lessons" : "More to explore"}</h3>
+                    <span>{feedItems.length} {feedItems.length === 1 ? "lesson" : "lessons"}</span>
+                  </div>
+                  <div className="learn-grid">
+                    {feedItems.map((publication) => (
+                      <LearnPublicationCard key={publication.id} publication={publication} onPlay={openPlayer} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!loading && !error && (hasSearch || selectedTopic) && feedItems.length === 0 && (
+                <div className="catalog-state compact">
+                  <Search size={24} />
+                  <h3>No matching lessons</h3>
+                  <p>Try another topic or a broader search.</p>
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+          <section className="hero" id="top">
+            <div className="hero-feature">
+              {featured ? (
+                <PublicationCard publication={featured} onPlay={openPlayer} featured prototype={isPrototype} />
+              ) : (
+                <div className="feature-placeholder">
+                  {loading ? <LoaderCircle size={26} /> : <Film size={28} />}
+                  <span>{loading ? "Tuning the live feed" : "Awaiting the next premiere"}</span>
+                </div>
+              )}
+              <div className="hero-overlay">
+                <h1>Don’t just watch. <em>Decide.</em></h1>
+                <p className="hero-summary">
+                  <span className="hero-summary-line"><span>Stories that bend around your choices.</span></span>
+                  <span className="hero-summary-line"><span>Every path is a different cut.</span></span>
+                  <span className="hero-summary-line"><span>Every decision is yours.</span></span>
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="explore-section" id="explore">
+            <div className="section-heading">
+              <div><span className="eyebrow">Now transmitting</span><h2>Interactive stories</h2></div>
+              <div className="catalog-tools">
+                <label className="search-box">
+                  <Search size={17} />
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search stories" aria-label="Search interactive stories" />
+                  {search && <button type="button" onClick={() => setSearch("")} aria-label="Clear search"><X size={14} /></button>}
+                </label>
+                <span className="catalog-count">{isPrototype ? "Preview mode" : `${response?.totalCount ?? publications.length} films`}</span>
+              </div>
+            </div>
+            {isPrototype && <div className="prototype-note"><span><Sparkles size={15} /></span><p><strong>The live catalog is ready.</strong> No films are published yet, so this prototype reel lets you test the branching player now.</p></div>}
+            {error && <div className="catalog-state"><Film size={28} /><h3>Signal interrupted</h3><p>{error}</p><button type="button" onClick={() => void loadPublications()}>Try again</button></div>}
+            {loading && <div className="film-grid" aria-label="Loading films">{[0, 1, 2].map((item) => <div className="film-skeleton" key={item} />)}</div>}
+            {!loading && !error && feedItems.length > 0 && <div className="film-grid">{feedItems.map((publication) => <PublicationCard key={publication.id} publication={publication} onPlay={openPlayer} prototype={isPrototype} />)}</div>}
+            {!loading && !error && hasSearch && feedItems.length === 0 && <div className="catalog-state compact"><Search size={24} /><h3>No matching timelines</h3><p>Try a different title, creator, or tag.</p></div>}
+            {response?.hasMore && !search && <button className="load-more" type="button" disabled={loadingMore} onClick={() => response.nextCursor && void loadPublications(response.nextCursor)}>{loadingMore ? <LoaderCircle size={17} /> : <ChevronDown size={17} />}{loadingMore ? "Loading" : "Load more stories"}</button>}
+          </section>
+        </>
+      )}
 
       <footer>
         <div className="brand" role="img" aria-label="tMochi"><TmochiLogo /></div>
-        <p>Interactive cinema, rendered in real time.</p>
+        <p>{isLearn ? "Interactive lessons, shaped by every choice." : "Interactive cinema, rendered in real time."}</p>
         <span>Powered by Samsar</span>
       </footer>
 

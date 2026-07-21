@@ -7,9 +7,15 @@ export async function GET(request: Request) {
   const parsedLimit = Number.parseInt(url.searchParams.get("limit") || "24", 10);
   const limit = Math.min(Math.max(Number.isFinite(parsedLimit) ? parsedLimit : 24, 1), 200);
   const cursor = url.searchParams.get("cursor")?.trim() || undefined;
+  const category = url.searchParams.get("category")?.trim() || undefined;
+  const topic = url.searchParams.get("topic")?.trim() || undefined;
 
   try {
-    const result = await samsarClient.listInteractivePublications({ limit, cursor });
+    const result = await samsarClient.listInteractivePublications({
+      limit,
+      cursor,
+      query: { category, topic },
+    });
     return Response.json(result.data, {
       status: result.status,
       headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=120" },

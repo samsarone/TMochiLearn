@@ -26,6 +26,14 @@ const RETRYABLE_META_REQUEST_CODES = new Set([
   "PUBLICATION_METADATA_WORKER_LEASE_LOST",
 ]);
 
+const parseTaxonomyList = (value: string, limit: number) =>
+  Array.from(new Set(
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+  )).slice(0, limit);
+
 function createClientRequestId() {
   return typeof crypto.randomUUID === "function"
     ? crypto.randomUUID()
@@ -47,6 +55,8 @@ export default function PublishDialog({
 }) {
   const [title, setTitle] = useState(suggestedTitle.slice(0, 160));
   const [description, setDescription] = useState("");
+  const [categories, setCategories] = useState("");
+  const [topics, setTopics] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [generatingMeta, setGeneratingMeta] = useState(false);
@@ -123,13 +133,25 @@ export default function PublishDialog({
       setError("Add a title before publishing.");
       return;
     }
+    const categoryList = parseTaxonomyList(categories, 3);
+    const topicList = parseTaxonomyList(topics, 8);
+    if (categoryList.length === 0 || topicList.length === 0) {
+      setError("Add at least one category and one topic before publishing.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       const response = await fetch("/api/creator/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, title: title.trim(), description: description.trim() }),
+        body: JSON.stringify({
+          sessionId,
+          title: title.trim(),
+          description: description.trim(),
+          categories: categoryList,
+          topics: topicList,
+        }),
       });
       const result = await response.json().catch(() => null) as (PublishResult & { error?: string }) | null;
       if (response.status === 401) {
@@ -216,6 +238,32 @@ export default function PublishDialog({
               />
               <small>{description.length}/2,000</small>
             </label>
+            <div className={styles.taxonomyFields}>
+              <label>
+                <span>Categories</span>
+                <input
+                  value={categories}
+                  onChange={(event) => setCategories(event.target.value)}
+                  maxLength={160}
+                  placeholder="Education, Science & Technology"
+                  disabled={busy}
+                  required
+                />
+                <small>Up to 3, comma separated</small>
+              </label>
+              <label>
+                <span>Topics</span>
+                <input
+                  value={topics}
+                  onChange={(event) => setTopics(event.target.value)}
+                  maxLength={320}
+                  placeholder="cell biology, ecosystems"
+                  disabled={busy}
+                  required
+                />
+                <small>Up to 8, comma separated</small>
+              </label>
+            </div>
             <div className={styles.dialogActions}>
               <button className={styles.secondaryButton} type="button" onClick={onClose} disabled={busy}>Cancel</button>
               <button className={styles.primaryButton} type="submit" disabled={busy}>

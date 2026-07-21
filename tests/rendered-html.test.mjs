@@ -26,13 +26,26 @@ test("server-renders the tMochi interactive cinema landing page", async () => {
   assert.match(html, /Interactive stories/i);
   assert.match(html, /lucide-wand-sparkles/i);
   assert.match(html, />Create<\/button>/i);
-  assert.doesNotMatch(html, /<nav aria-label="Main navigation"/i);
+  assert.match(html, /<nav[^>]*aria-label="Main navigation"/i);
+  assert.match(html, /href="\/learn"/i);
   assert.match(html, /brand-t-fat/i);
   assert.doesNotMatch(html, /brand-t-notch/i);
   assert.match(html, /brand-word[^>]*>Mochi<\/span>/i);
   assert.doesNotMatch(html, /brand-o/i);
   assert.doesNotMatch(html, /brand-mark/i);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
+});
+
+test("server-renders the education-only Learn catalog", async () => {
+  const response = await render("/learn");
+  assert.equal(response.status, 200);
+
+  const html = await response.text();
+  assert.match(html, /Choose what you/i);
+  assert.match(html, /learn next/i);
+  assert.match(html, /Interactive learning library/i);
+  assert.match(html, /Educational interactive content/i);
+  assert.match(html, /Explore topics/i);
 });
 
 test("server-renders shared player URLs in a paused loading state", async () => {
@@ -114,6 +127,8 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(styles, /hero-summary-caret/);
   assert.match(styles, /\.hero-summary-line > span \{ clip-path: none; animation: none; \}/);
   assert.match(route, /listInteractivePublications/);
+  assert.match(route, /category/);
+  assert.match(route, /topic/);
   assert.match(detailRoute, /getInteractivePublication/);
   assert.match(watchPage, /initialPublicationId/);
   assert.match(watchPage, /initialPublication=\{publication\}/);
@@ -215,6 +230,8 @@ test("wires Creator Studio to shared auth, unified generation, detailed polling,
   assert.match(statusRoute, /getV2StatusDetailed/);
   assert.match(publishRoute, /publishPublication/);
   assert.match(publishRoute, /profile\.username/);
+  assert.match(publishRoute, /categories/);
+  assert.match(publishRoute, /topics/);
   assert.match(generateMetaRoute, /interactive_publication\/generate_meta/);
   assert.match(generateMetaRoute, /clientRequestId\.length > 200/);
   assert.match(generateMetaRoute, /sessionId\.length > 200/);
@@ -267,6 +284,9 @@ test("wires Creator Studio to shared auth, unified generation, detailed polling,
   assert.match(publishDialog, /response\.status === 402/);
   assert.match(publishDialog, /setTitle\(generatedTitle\.slice\(0, 160\)\)/);
   assert.match(publishDialog, /setDescription\(generatedDescription\.slice\(0, 2000\)\)/);
+  assert.match(publishDialog, /Add at least one category and one topic/);
+  assert.match(publishDialog, /categoryList/);
+  assert.match(publishDialog, /topicList/);
   assert.match(publishDialog, /onCreditsRemaining/);
   assert.match(creatorStyles, /\.progressTrack\s*\{[^}]*overflow:\s*hidden/);
   assert.match(creatorStyles, /\.progressTrack span\s*\{[^}]*max-width:\s*100%/);
