@@ -139,6 +139,10 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(page, /selectedLeafPathIdRef\.current = null/);
   assert.match(page, /descriptionExpanded/);
   assert.match(page, /is-idle-playing/);
+  assert.match(page, /Learn Topics\./);
+  assert.match(page, /Every alternative outcome, explained\./);
+  assert.match(page, /Every path, followed\./);
+  assert.match(page, /Every decision builds deeper understanding\./);
   assert.match(page, /addEventListener\("scroll", revealControls/);
   assert.doesNotMatch(page, /Now exploring/);
   assert.doesNotMatch(page, />Play with sound</);
@@ -156,8 +160,14 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(styles, /\.flat-branch-tree/);
   assert.match(styles, /\.flat-tree-edges/);
   assert.match(styles, /\.branch-leaf-end/);
+  assert.match(styles, /\.branch-leaf-end \{[^}]*pointer-events: auto/);
+  assert.match(styles, /\.flat-tree-node\.branch-leaf:not\(\.is-selected\) \{ animation: leaf-lock-cue/);
   assert.match(styles, /\.featured-title/);
+  assert.match(styles, /\.featured-landing \{[^}]*aspect-ratio: 16\/9/);
+  assert.match(styles, /\.site-header \.site-nav \{ margin-left: 8px/);
   assert.match(styles, /\.player-shell\.is-standard\.is-idle-playing/);
+  assert.match(styles, /is-idle-playing \.watch-header \{ opacity: \.46/);
+  assert.match(styles, /is-idle-playing \.branch-map,[^}]*opacity: \.34/);
   assert.match(styles, /\.branch-root-circle/);
   assert.match(styles, /\.branch-leaf\.is-selected/);
   assert.match(styles, /\.player-shell\.is-immersive/);

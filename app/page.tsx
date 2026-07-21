@@ -287,6 +287,18 @@ function PublicationCard({
           aria-hidden="true"
         />
         <span className="poster-shade" />
+        {featured && (
+          <span className="featured-poster-overlay" aria-hidden="true">
+            <strong className="featured-poster-heading">Learn Topics. <em>Deeply</em></strong>
+            {previewState !== "tree" && (
+              <span className="hero-summary featured-poster-summary">
+                <span className="hero-summary-line"><span>Every alternative outcome, explained.</span></span>
+                <span className="hero-summary-line"><span>Every path, followed.</span></span>
+                <span className="hero-summary-line"><span>Every decision builds deeper understanding.</span></span>
+              </span>
+            )}
+          </span>
+        )}
         <span className={`play-orbit ${previewState === "tree" ? "is-compact" : ""}`}>
           <Play size={featured ? 25 : 20} fill="currentColor" />
         </span>
