@@ -1,8 +1,6 @@
-<p align="center">
-  <img src="public/tmochi-learn-logo.png" alt="TMochiLearn logo" width="180" />
-</p>
-
-<h1 align="center">TMochiLearn</h1>
+<h1 align="center">
+  <img src="public/tmochi-learn-logo.png" alt="" width="48" />&nbsp;TMochiLearn
+</h1>
 
 <p align="center"><strong>Interactive educational videos that adapt to every choice.</strong></p>
 
