@@ -5,7 +5,7 @@ import {
   ChevronDown,
   CircleDollarSign,
   Download,
-  Film,
+  BookOpen,
   LoaderCircle,
   LogOut,
   Play,
@@ -174,28 +174,28 @@ function returnToSignIn() {
 }
 
 function resolveStage(status: CreatorStatus | null, hasRequest: boolean) {
-  if (!hasRequest) return "Ready for direction";
-  if (!status) return "Connecting to the render graph";
-  if (isCompleted(status)) return "Interactive render complete";
-  if (isFailed(status)) return "Generation stopped";
+  if (!hasRequest) return "Ready to create a lesson";
+  if (!status) return "Preparing the lesson workspace";
+  if (isCompleted(status)) return "Interactive lesson ready";
+  if (isFailed(status)) return "Lesson generation stopped";
   const sessionStage = status.session?.currentStage || status.session?.previewStage;
   const stage = String(sessionStage || "").toLowerCase();
-  if (stage === "prompt_generation") return "Writing the interactive narrative";
-  if (stage === "image_generation") return "Generating branch imagery";
+  if (stage === "prompt_generation") return "Structuring the interactive lesson";
+  if (stage === "image_generation") return "Creating lesson visuals";
   if (["speech_generation", "music_generation", "audio_generation"].includes(stage)) {
-    return "Building spatial audio";
+    return "Adding narration and audio";
   }
-  if (stage === "ai_video_generation") return "Animating branch scenes";
+  if (stage === "ai_video_generation") return "Animating lesson scenes";
   if (["lip_sync_generation", "sound_effect_generation", "narrator_avatar_generation"].includes(stage)) {
-    return "Finishing branch media";
+    return "Polishing lesson media";
   }
   if (["delete_reflow", "timeline_reflowed", "transcript_generation"].includes(stage)) {
-    return "Assembling branch timelines";
+    return "Assembling learning paths";
   }
-  if (stage === "frame_generation") return "Rendering branch frames";
-  if (stage === "video_generation") return "Encoding branch films";
-  if (getBranching(status)?.paths?.length) return "Materializing the branch tree";
-  return "Writing the interactive narrative";
+  if (stage === "frame_generation") return "Rendering lesson scenes";
+  if (stage === "video_generation") return "Encoding the interactive lesson";
+  if (getBranching(status)?.paths?.length) return "Mapping learning paths";
+  return "Structuring the interactive lesson";
 }
 
 function normalizedStageStatus(value: unknown) {
@@ -268,7 +268,7 @@ function resolveCreditsCharged(status: CreatorStatus | null) {
 }
 
 function suggestedTitle(prompt: string) {
-  const firstSentence = prompt.trim().split(/[.!?\n]/)[0]?.trim() || "Untitled interactive film";
+  const firstSentence = prompt.trim().split(/[.!?\n]/)[0]?.trim() || "Untitled interactive lesson";
   return firstSentence.length > 72 ? `${firstSentence.slice(0, 69).trim()}…` : firstSentence;
 }
 
@@ -646,7 +646,7 @@ export default function CreatorStudio({
       return;
     }
     if (!form.prompt.trim()) {
-      setError("Describe the story you want to create.");
+      setError("Describe what learners should understand or practice.");
       return;
     }
     if (user.generationCredits <= 0) {
@@ -974,20 +974,20 @@ export default function CreatorStudio({
       <div className={`${styles.studioGrid} ${renderStarted ? styles.studioGridActive : styles.studioGridDraft}`}>
         <aside className={styles.controlPanel}>
           <div className={styles.panelHeading}>
-            <span className={styles.eyebrow}>Build a new transmission</span>
-            <h1>Direct every <em>possible path.</em></h1>
-            <p>Describe one premise. TMochiLearn builds its story tree, renders every branch, and keeps the timing connected.</p>
+            <span className={styles.eyebrow}>Interactive video creator</span>
+            <h1>Create a <em>learning video.</em></h1>
+            <p>Build an educational, technical, or training lesson where learners make choices and explore outcomes.</p>
           </div>
 
           <form className={styles.creatorForm} onSubmit={generate}>
             <label className={styles.promptField}>
-              <span>Story direction <small>{form.prompt.length}/4,000</small></span>
+              <span>Lesson brief <small>{form.prompt.length}/4,000</small></span>
               <textarea
                 value={form.prompt}
                 onChange={(event) => setForm((current) => ({ ...current, prompt: event.target.value }))}
                 maxLength={4000}
                 rows={7}
-                placeholder="A midnight train arrives in a sleeping city. The viewer chooses which stranger to follow…"
+                placeholder="What should learners understand or practice?"
                 disabled={inProgress || generating}
                 required
               />
@@ -995,7 +995,7 @@ export default function CreatorStudio({
 
             <div className={styles.durationField}>
               <div className={styles.fieldTitle}>
-                <span>Duration</span>
+                <span>Lesson length</span>
                 <label>
                   <input
                     type="number"
@@ -1028,7 +1028,7 @@ export default function CreatorStudio({
 
             <div className={styles.selectGrid}>
               <label>
-                <span>Image model</span>
+                <span>Visual model</span>
                 <div className={styles.selectWrap}>
                   <select
                     value={form.imageModel}
@@ -1039,10 +1039,9 @@ export default function CreatorStudio({
                   </select>
                   <ChevronDown size={14} />
                 </div>
-                <small>{IMAGE_MODELS.find((model) => model.value === form.imageModel)?.detail}</small>
               </label>
               <label>
-                <span>Video model</span>
+                <span>Motion model</span>
                 <div className={styles.selectWrap}>
                   <select
                     value={form.videoModel}
@@ -1053,14 +1052,13 @@ export default function CreatorStudio({
                   </select>
                   <ChevronDown size={14} />
                 </div>
-                <small>{VIDEO_MODELS.find((model) => model.value === form.videoModel)?.detail}</small>
               </label>
             </div>
 
             <fieldset className={styles.levelField} disabled={inProgress || generating}>
               <legend>
-                <span>Branching levels</span>
-                <small>{Math.pow(2, form.levels)} possible endings</small>
+                <span>Choice depth</span>
+                <small>{Math.pow(2, form.levels)} learning paths</small>
               </legend>
               <div>
                 {[1, 2, 3].map((level) => (
@@ -1072,7 +1070,7 @@ export default function CreatorStudio({
                     aria-pressed={form.levels === level}
                   >
                     <strong>{level}</strong>
-                    <span>{Math.pow(2, level)} paths</span>
+                    <span>{Math.pow(2, level)} routes</span>
                   </button>
                 ))}
               </div>
@@ -1082,7 +1080,7 @@ export default function CreatorStudio({
             {balanceMayBeShort && !inProgress && (
               <div className={styles.creditWarning}>
                 <CircleDollarSign size={16} />
-                <span>Your balance is below the conservative ceiling. The final charge may be lower because shared branch media is billed once.</span>
+                <span>Your balance may be too low for this lesson. Shared scenes are only billed once.</span>
               </div>
             )}
 
@@ -1093,7 +1091,7 @@ export default function CreatorStudio({
             >
                 {generating ? <LoaderCircle className={styles.spin} size={18} /> : <Sparkles size={18} />}
                 <span>{generating
-                  ? "Opening render graph"
+                  ? "Starting lesson"
                   : !sessionChecked
                     ? "Checking session"
                     : inProgress
@@ -1102,15 +1100,15 @@ export default function CreatorStudio({
                         ? "Generation complete"
                         : failed
                           ? "Session unavailable"
-                          : "Generate interactive film"}</span>
+                          : "Create interactive video"}</span>
                 {!generating && !renderStarted && <Zap size={15} />}
             </button>
             {renderStarted && (
               <div className={styles.activeRequestActions}>
-                <span>{inProgress && <LoaderCircle className={styles.spin} size={13} />} This session cannot be submitted again</span>
+                <span>{inProgress && <LoaderCircle className={styles.spin} size={13} />} This lesson is already being created</span>
               </div>
             )}
-            <p className={styles.estimateNote}>Estimate uses the selected model’s full rate and assumes every leaf spans the maximum duration. The API charges the exact unique branch duration.</p>
+            <p className={styles.estimateNote}>Estimate is based on model, lesson length, and learning paths. Shared scenes are billed once.</p>
           </form>
         </aside>
 
@@ -1141,9 +1139,9 @@ export default function CreatorStudio({
             {isDraft && generating && (
               <div className={styles.renderOpening}>
                 <LoaderCircle className={styles.spin} size={24} />
-                <span className={styles.eyebrow}>Initializing render graph</span>
-                <h2>Opening your branching session.</h2>
-                <p>The configuration is locked in. The live tree will appear as soon as Samsar accepts the render.</p>
+                <span className={styles.eyebrow}>Preparing your lesson</span>
+                <h2>Building the learning paths.</h2>
+                <p>Your interactive lesson map will appear here shortly.</p>
               </div>
             )}
 
@@ -1151,13 +1149,13 @@ export default function CreatorStudio({
               <>
                 <div className={styles.treeSection}>
                   <div className={styles.sectionLabel}>
-                    <span>Branch topology</span>
+                    <span>Learning path map</span>
                     <small>
                       {branchLayerCount > 0
                         ? `${branchLayerCount} layers · click any scene to preview`
                         : branching?.tree.num_levels
                           ? `${branching.tree.num_levels} levels`
-                          : "Mapping story graph"}
+                          : "Mapping lesson paths"}
                     </small>
                   </div>
                   <BranchTree
@@ -1176,8 +1174,8 @@ export default function CreatorStudio({
                 {!complete && !failed && (
                   <div className={styles.livePreviewSection}>
                     <div className={styles.sectionLabel}>
-                      <span>Branch media preview</span>
-                      <small>Click a layer above or play a random ending</small>
+                      <span>Lesson preview</span>
+                      <small>Select a scene or preview a complete path</small>
                     </div>
                     <BranchPreview
                       ref={branchPreviewRef}
@@ -1190,9 +1188,9 @@ export default function CreatorStudio({
 
                 {failed && (
                   <div className={styles.failedPreview}>
-                    <Film size={28} />
-                    <h2>This generation stopped.</h2>
-                    <p>{statusDetail || "The renderer could not complete this interactive film."}</p>
+                    <BookOpen size={28} />
+                    <h2>Lesson generation stopped.</h2>
+                    <p>{statusDetail || "TMochiLearn could not complete this interactive lesson."}</p>
                     <div>
                       <button className={styles.secondaryButton} type="button" onClick={newDraft}><RefreshCw size={15} /> Start again</button>
                       {`${statusDetail || ""}`.toLowerCase().includes("credit") && (
@@ -1211,20 +1209,20 @@ export default function CreatorStudio({
                         <Play size={24} fill="currentColor" />
                       </button>
                       <div>
-                        <span><Check size={13} /> Render complete</span>
-                        <strong>{outputPaths.length} playable paths</strong>
+                        <span><Check size={13} /> Lesson ready</span>
+                        <strong>{outputPaths.length} learning paths</strong>
                       </div>
                     </div>
                     <div className={styles.completedActions}>
                       <button className={styles.primaryButton} type="button" onClick={() => setPlayerOpen(true)}>
-                        <Play size={16} fill="currentColor" /> Play interactive cut
+                        <Play size={16} fill="currentColor" /> Play interactive lesson
                       </button>
                       <button className={styles.secondaryButton} type="button" onClick={() => void downloadArtifacts()} disabled={downloading}>
                         {downloading ? <LoaderCircle className={styles.spin} size={16} /> : <Download size={16} />}
                         {downloading ? `Packing ${downloadProgress}%` : "Download artifacts"}
                       </button>
                       <button className={styles.publishAction} type="button" onClick={() => setPublishOpen(true)}>
-                        <Send size={16} /> Publish to feed
+                        <Send size={16} /> Publish to library
                       </button>
                     </div>
                   </div>

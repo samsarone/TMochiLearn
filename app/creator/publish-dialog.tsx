@@ -158,7 +158,7 @@ export default function PublishDialog({
         returnToSignIn();
         return;
       }
-      if (!response.ok) throw new Error(result?.error || "Unable to publish this film.");
+      if (!response.ok) throw new Error(result?.error || "Unable to publish this lesson.");
       const resolvedId =
         result?.publication?.id ||
         result?.publication?.publication_id ||
@@ -167,7 +167,7 @@ export default function PublishDialog({
         null;
       setPublicationId(resolvedId);
     } catch (publishError) {
-      setError(publishError instanceof Error ? publishError.message : "Unable to publish this film.");
+      setError(publishError instanceof Error ? publishError.message : "Unable to publish this lesson.");
     } finally {
       setSubmitting(false);
     }
@@ -185,11 +185,11 @@ export default function PublishDialog({
         {publicationId ? (
           <div className={styles.publishSuccess}>
             <span><Check size={24} /></span>
-            <p className={styles.eyebrow}>Transmission live</p>
-            <h2 id="publish-title">Your interactive film is published.</h2>
-            <p>It now appears in the public TMochiLearn feed and has its own shareable player.</p>
+            <p className={styles.eyebrow}>Lesson published</p>
+            <h2 id="publish-title">Your lesson is ready to share.</h2>
+            <p>It now appears in the TMochiLearn library.</p>
             <a className={styles.primaryButton} href={`/watch/${encodeURIComponent(publicationId)}`}>
-              Watch published film <ArrowRight size={16} />
+              View published lesson <ArrowRight size={16} />
             </a>
           </div>
         ) : (
@@ -197,8 +197,8 @@ export default function PublishDialog({
             <div className={styles.dialogHeading}>
               <div>
                 <span className={styles.eyebrow}>Publish to TMochiLearn</span>
-                <h2 id="publish-title">Name this transmission.</h2>
-                <p className={styles.dialogIntro}>Add the public details viewers will see in the feed.</p>
+                <h2 id="publish-title">Publish your lesson.</h2>
+                <p className={styles.dialogIntro}>Add the details learners will see.</p>
               </div>
               <button
                 className={`${styles.secondaryButton} ${styles.generateMetaButton}`}
@@ -209,7 +209,7 @@ export default function PublishDialog({
                 {generatingMeta
                   ? <LoaderCircle className={styles.spin} size={15} />
                   : <Sparkles size={15} />}
-                {generatingMeta ? "Generating" : "Generate meta"}
+                {generatingMeta ? "Generating" : "Suggest details"}
               </button>
             </div>
             {error && <div className={styles.formError} role="alert">{error}</div>}
@@ -219,7 +219,6 @@ export default function PublishDialog({
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 maxLength={160}
-                placeholder="A memorable title"
                 autoFocus
                 required
                 disabled={busy}
@@ -233,7 +232,6 @@ export default function PublishDialog({
                 onChange={(event) => setDescription(event.target.value)}
                 maxLength={2000}
                 rows={5}
-                placeholder="Tell viewers what they are about to explore…"
                 disabled={busy}
               />
               <small>{description.length}/2,000</small>
@@ -245,7 +243,6 @@ export default function PublishDialog({
                   value={categories}
                   onChange={(event) => setCategories(event.target.value)}
                   maxLength={160}
-                  placeholder="Education, Science & Technology"
                   disabled={busy}
                   required
                 />
@@ -257,7 +254,6 @@ export default function PublishDialog({
                   value={topics}
                   onChange={(event) => setTopics(event.target.value)}
                   maxLength={320}
-                  placeholder="cell biology, ecosystems"
                   disabled={busy}
                   required
                 />
@@ -268,7 +264,7 @@ export default function PublishDialog({
               <button className={styles.secondaryButton} type="button" onClick={onClose} disabled={busy}>Cancel</button>
               <button className={styles.primaryButton} type="submit" disabled={busy}>
                 {submitting ? <LoaderCircle className={styles.spin} size={17} /> : <Send size={16} />}
-                {submitting ? "Publishing" : "Publish film"}
+                {submitting ? "Publishing" : "Publish lesson"}
               </button>
             </div>
           </form>

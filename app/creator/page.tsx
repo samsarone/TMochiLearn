@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Creator Studio — TMochiLearn",
-  description: "Create, preview, download, and publish branching interactive films with TMochiLearn.",
+  description: "Create, preview, and publish interactive educational, technical, and training videos with TMochiLearn.",
 };
 
 export default async function CreatorPage() {

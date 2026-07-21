@@ -213,6 +213,29 @@ const pathForOption = (
   );
 };
 
+function FeaturedCtaCopy({
+  className,
+  showSummary = true,
+  ariaHidden,
+}: {
+  className: string;
+  showSummary?: boolean;
+  ariaHidden?: boolean;
+}) {
+  return (
+    <span className={className} aria-hidden={ariaHidden}>
+      <strong className="featured-poster-heading">Learn Topics. <em>Deeply</em></strong>
+      {showSummary && (
+        <span className="hero-summary featured-poster-summary">
+          <span className="hero-summary-line"><span>Every alternative outcome, explained.</span></span>
+          <span className="hero-summary-line"><span>Every path, followed.</span></span>
+          <span className="hero-summary-line"><span>Every decision builds deeper understanding.</span></span>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function PublicationCard({
   publication,
   onPlay,
@@ -287,18 +310,7 @@ function PublicationCard({
           aria-hidden="true"
         />
         <span className="poster-shade" />
-        {featured && (
-          <span className="featured-poster-overlay" aria-hidden="true">
-            <strong className="featured-poster-heading">Learn Topics. <em>Deeply</em></strong>
-            {previewState !== "tree" && (
-              <span className="hero-summary featured-poster-summary">
-                <span className="hero-summary-line"><span>Every alternative outcome, explained.</span></span>
-                <span className="hero-summary-line"><span>Every path, followed.</span></span>
-                <span className="hero-summary-line"><span>Every decision builds deeper understanding.</span></span>
-              </span>
-            )}
-          </span>
-        )}
+        {featured && <FeaturedCtaCopy className="featured-poster-overlay" showSummary={previewState !== "tree"} ariaHidden />}
         <span className={`play-orbit ${previewState === "tree" ? "is-compact" : ""}`}>
           <Play size={featured ? 25 : 20} fill="currentColor" />
         </span>
@@ -392,12 +404,14 @@ function PublicationBranchTree({
   selectedLeafPathId,
   onSelectLeaf,
   onRestart,
+  variant = "player",
 }: {
   publication: InteractivePublication;
   activePathId: string;
   selectedLeafPathId: string | null;
   onSelectLeaf: (path: InteractivePublicationVideoPath) => void;
   onRestart: () => void;
+  variant?: "player" | "featured";
 }) {
   const paths = publication.manifest.outputs.paths;
   const choicePoints = [...publication.manifest.tree.choice_points]
@@ -507,7 +521,7 @@ function PublicationBranchTree({
   });
 
   return (
-    <section className="branch-map" aria-label="Choose a final video path">
+    <section className={`branch-map ${variant === "featured" ? "branch-map-featured" : ""}`} aria-label="Choose a final video path">
       <div className="branch-map-canvas branch-map-horizontal">
         <div className="flat-branch-tree" style={{ height: treeHeight }} role="tree" aria-label="Interactive video paths">
           <svg className="flat-tree-edges" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
@@ -594,13 +608,17 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
   publication: InteractivePublication;
   onClose: () => void;
   startPaused: boolean;
-}>(function InteractivePlayer({ publication, onClose, startPaused }, ref) {
+  initialLeafPathId?: string | null;
+}>(function InteractivePlayer({ publication, onClose, startPaused, initialLeafPathId = null }, ref) {
   const isMobileLoading = useMobilePlayerLoading();
   const paths = publication.manifest.outputs.paths;
   const defaultPath =
     paths.find((path) => path.path_id === publication.manifest.default_path_id) ??
     paths.find((path) => path.is_default) ??
     paths[0];
+  const initialLockedPathId = paths.some((path) => path.path_id === initialLeafPathId)
+    ? initialLeafPathId
+    : null;
   const [activePathId, setActivePathId] = useState(defaultPath?.path_id ?? "");
   const [pendingChoice, setPendingChoice] = useState<InteractivePublicationChoicePoint | null>(null);
   const [previewChoice, setPreviewChoice] = useState<InteractivePublicationChoicePoint | null>(null);
@@ -614,7 +632,7 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [awaitingStart, setAwaitingStart] = useState(startPaused);
   const [immersive, setImmersive] = useState(false);
-  const [selectedLeafPathId, setSelectedLeafPathId] = useState<string | null>(null);
+  const [selectedLeafPathId, setSelectedLeafPathId] = useState<string | null>(initialLockedPathId);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const videoElementsRef = useRef(new Map<string, HTMLVideoElement>());
   const playerRef = useRef<HTMLDivElement>(null);
@@ -633,7 +651,7 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
     baseVolume: number;
   } | null>(null);
   const presentedChoiceIdRef = useRef<string | null>(null);
-  const selectedLeafPathIdRef = useRef<string | null>(null);
+  const selectedLeafPathIdRef = useRef<string | null>(initialLockedPathId);
   const preloadedThumbnailUrlsRef = useRef(new Set<string>());
   const initialPlaybackRequestedRef = useRef(false);
   const fullscreenPlaybackRef = useRef<{ pathId: string; shouldResume: boolean } | null>(null);
@@ -1647,6 +1665,7 @@ export default function Home({
   const [search, setSearch] = useState("");
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selected, setSelected] = useState<InteractivePublication | null>(initialPublication ?? null);
+  const [entryLeafPathId, setEntryLeafPathId] = useState<string | null>(null);
   const [playerEntry, setPlayerEntry] = useState<PlayerEntry>(initialPublicationId ? "direct" : "internal");
   const [routeLoading, setRouteLoading] = useState(Boolean(initialPublicationId && !initialPublication));
   const [routeError, setRouteError] = useState<string | null>(null);
@@ -1658,6 +1677,7 @@ export default function Home({
   const clearPlayerRoute = useCallback(() => {
     routeRequestRef.current += 1;
     setSelected(null);
+    setEntryLeafPathId(null);
     setRouteLoading(false);
     setRouteError(null);
     if (document.fullscreenElement) {
@@ -1674,6 +1694,7 @@ export default function Home({
     const requestId = ++routeRequestRef.current;
     setPlayerEntry("direct");
     setSelected(null);
+    setEntryLeafPathId(null);
     setRouteLoading(true);
     setRouteError(null);
 
@@ -1705,7 +1726,7 @@ export default function Home({
     if (cursor) setLoadingMore(true);
     else setLoading(true);
     try {
-      const query = new URLSearchParams({ limit: isLearn ? "200" : "24" });
+      const query = new URLSearchParams({ limit: isLearn ? "200" : "30" });
       if (isLearn) query.set("category", "Education");
       if (cursor) query.set("cursor", cursor);
       const request = await fetch(`/api/interactive-publications?${query}`);
@@ -1800,10 +1821,18 @@ export default function Home({
       (!selectedTopic || publication.topics?.includes(selectedTopic));
   });
   const featured = publications[0];
+  const featuredDefaultPathId = featured
+    ? featured.manifest.outputs.paths.find((path) => path.path_id === featured.manifest.default_path_id)?.path_id ??
+      featured.manifest.outputs.paths.find((path) => path.is_default)?.path_id ??
+      featured.manifest.outputs.paths[0]?.path_id ??
+      ""
+    : "";
   const hasSearch = Boolean(search.trim());
   const feedItems = hasSearch || selectedTopic
     ? filtered
-    : filtered.filter((publication) => publication.id !== featured?.id);
+    : isLearn
+      ? filtered.filter((publication) => publication.id !== featured?.id)
+      : filtered;
 
   const openPlayer = useCallback((
     publication: InteractivePublication,
@@ -1820,12 +1849,32 @@ export default function Home({
     event.preventDefault();
     flushSync(() => {
       setPlayerEntry("internal");
+      setEntryLeafPathId(null);
       setRouteLoading(false);
       setRouteError(null);
       setSelected(publication);
     });
     void playerHandleRef.current?.playWithSound();
     window.history.pushState({ tmochiPlayer: true }, "", publicationPath(publication.id));
+  }, []);
+
+  const openPlayerAtPath = useCallback((
+    publication: InteractivePublication,
+    pathId: string | null,
+  ) => {
+    flushSync(() => {
+      setPlayerEntry("internal");
+      setEntryLeafPathId(pathId);
+      setRouteLoading(false);
+      setRouteError(null);
+      setSelected(publication);
+    });
+    void playerHandleRef.current?.playWithSound();
+    window.history.pushState(
+      { tmochiPlayer: true, tmochiLeafPath: pathId },
+      "",
+      publicationPath(publication.id),
+    );
   }, []);
 
   const closePlayer = useCallback(() => {
@@ -1866,11 +1915,12 @@ export default function Home({
     return (
       <main className="watch-page">
         <InteractivePlayer
-          key={selected.id}
+          key={`${selected.id}:${entryLeafPathId ?? "default"}`}
           ref={playerHandleRef}
           publication={selected}
           onClose={closePlayer}
           startPaused={playerEntry === "direct"}
+          initialLeafPathId={entryLeafPathId}
         />
       </main>
     );
@@ -2018,13 +2068,28 @@ export default function Home({
         </>
       ) : (
         <>
-          <section className="featured-landing" id="top" aria-label="Featured interactive video">
-            {featured ? (
-              <PublicationCard publication={featured} onPlay={openPlayer} featured prototype={isPrototype} />
-            ) : (
-              <div className="feature-placeholder">
-                {loading ? <LoaderCircle size={26} /> : <Film size={28} />}
-              </div>
+          <section className={`featured-landing ${featured ? "has-featured" : ""}`} id="top" aria-label="Featured interactive video">
+            <div className="featured-media">
+              {featured ? (
+                <PublicationCard publication={featured} onPlay={openPlayer} featured prototype={isPrototype} />
+              ) : (
+                <div className="feature-placeholder">
+                  {loading ? <LoaderCircle size={26} /> : <Film size={28} />}
+                </div>
+              )}
+            </div>
+            {featured && (
+              <aside className="featured-landing-panel" aria-label="Choose how to watch the featured lesson">
+                <FeaturedCtaCopy className="featured-desktop-copy" />
+                <PublicationBranchTree
+                  publication={featured}
+                  activePathId={featuredDefaultPathId}
+                  selectedLeafPathId={null}
+                  onSelectLeaf={(path) => openPlayerAtPath(featured, path.path_id)}
+                  onRestart={() => openPlayerAtPath(featured, null)}
+                  variant="featured"
+                />
+              </aside>
             )}
           </section>
           {featured && (

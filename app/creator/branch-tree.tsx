@@ -195,10 +195,10 @@ export function BranchTree({
         <div className={classNames(styles.branchTree, styles.branchTreeEmpty)} role="status">
           <div className={styles.branchNode}>
             <div className={styles.branchNodeCard}>
-              <span className={styles.branchNodeKicker}>Branch map</span>
-              <strong className={styles.branchNodeTitle}>Preparing story structure</strong>
+              <span className={styles.branchNodeKicker}>Lesson map</span>
+              <strong className={styles.branchNodeTitle}>Preparing learning paths</strong>
               <p className={styles.branchNodeDescription}>
-                Paths will appear here when the generation plan is ready.
+                Lesson paths will appear when the plan is ready.
               </p>
             </div>
           </div>
@@ -523,18 +523,18 @@ export function BranchTree({
     const isRoot = !incomingBranch;
     const isLeaf = children.length === 0;
     const label = isRoot
-      ? "Opening sequence"
+      ? "Opening scene"
       : safeLabel(incomingBranch.option.path_name) ??
         safeLabel(incomingBranch.option["branching_hint"]) ??
         `Branch ${incomingBranch.option.branch_ordinal ?? incomingBranch.optionIndex + 1}`;
     const description = isRoot
-      ? "Every generated route begins here."
+      ? "Every learning path begins here."
       : safeLabel(incomingBranch.option.path_description) ??
         safeLabel(incomingBranch.option["description"]);
     const kicker = isRoot
-      ? "Story root"
+      ? "Lesson start"
       : isLeaf
-        ? "Ending"
+        ? "Outcome"
         : `Level ${depth}`;
 
     return (
@@ -560,7 +560,7 @@ export function BranchTree({
           <strong className={styles.branchNodeTitle}>{label}</strong>
           {description && <p className={styles.branchNodeDescription}>{description}</p>}
           {isCycle && (
-            <p className={styles.branchNodeDescription}>This branch links to an earlier node.</p>
+            <p className={styles.branchNodeDescription}>This path returns to an earlier scene.</p>
           )}
           <span className={styles.branchNodeMeta}>
             <span className={styles.branchNodeLeafCount}>{pathCountLabel(leafCount)}</span>
@@ -603,12 +603,12 @@ export function BranchTree({
     <div
       className={styles.branchTreeScroller}
       tabIndex={0}
-      aria-label="Interactive story branch map. Scroll horizontally to explore every path."
+      aria-label="Interactive lesson path map. Scroll horizontally to explore every path."
     >
       <div
         className={styles.branchTree}
         role="tree"
-        aria-label={hasLayerTree ? "Interactive story layers" : "Interactive story branches"}
+        aria-label={hasLayerTree ? "Interactive lesson scenes" : "Interactive lesson paths"}
         aria-orientation="horizontal"
       >
         {hasLayerTree ? (
@@ -620,8 +620,8 @@ export function BranchTree({
             aria-selected={false}
           >
             <div className={classNames(styles.branchNodeCard, styles.active)}>
-              <span className={styles.branchNodeKicker}>Layer topology</span>
-              <strong className={styles.branchNodeTitle}>Opening sequence</strong>
+              <span className={styles.branchNodeKicker}>Lesson path</span>
+              <strong className={styles.branchNodeTitle}>Opening scene</strong>
               <span className={styles.branchNodeMeta}>
                 <span className={styles.branchNodeLeafCount}>
                   {pathCountLabel(branching.summary?.total_paths ?? branching.paths?.length ?? 0)}

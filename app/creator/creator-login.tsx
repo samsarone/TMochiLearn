@@ -156,14 +156,14 @@ export default function CreatorLogin({ redirectPath = "/creator" }: { redirectPa
         <div className={styles.loginIcon} aria-hidden="true">
           <LockKeyhole size={22} />
         </div>
-        <span className={styles.eyebrow}>Private creator access</span>
+        <span className={styles.eyebrow}>TMochiLearn creator access</span>
         <h1>{view === "login" ? "Sign in to build" : "Create your Samsar"}<br />
-          {view === "login" ? "branching stories." : "creator account."}
+          {view === "login" ? "interactive lessons." : "creator account."}
         </h1>
         <p className={styles.loginIntro}>
           {view === "login"
             ? "Use the same Samsar account you use on samsar.one. Your shared secure session will also work here on TMochiLearn."
-            : "Create credentials compatible with Samsar, the Gallery, and TMochiLearn Creator Studio."}
+            : "Create one account for Samsar and TMochiLearn Creator Studio."}
         </p>
 
         <div className={styles.authTabs} role="tablist" aria-label="Authentication mode">

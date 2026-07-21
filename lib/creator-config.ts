@@ -12,11 +12,11 @@ export const IMAGE_MODELS: ReadonlyArray<{
   label: string;
   detail: string;
 }> = [
-  { value: "NANOBANANA2", label: "Nano Banana 2", detail: "Balanced cinematic detail" },
+  { value: "NANOBANANA2", label: "Nano Banana 2", detail: "Clear educational visuals" },
   { value: "GPTIMAGE2", label: "GPT Image 2", detail: "Strong prompt fidelity" },
   { value: "NANOBANANAPRO", label: "Nano Banana Pro", detail: "High-detail compositions" },
-  { value: "SEEDREAM", label: "Seedream", detail: "Stylized visual direction" },
-  { value: "WAN2.7PRO", label: "Wan 2.7 Pro", detail: "Expressive scene design" },
+  { value: "SEEDREAM", label: "Seedream", detail: "Stylized lesson visuals" },
+  { value: "WAN2.7PRO", label: "Wan 2.7 Pro", detail: "Expressive demonstrations" },
 ] as const;
 
 export const VIDEO_MODELS: ReadonlyArray<{
@@ -25,7 +25,7 @@ export const VIDEO_MODELS: ReadonlyArray<{
   detail: string;
   creditsPerSecond: number;
 }> = [
-  { value: "COSMOS3SUPERI2V", label: "Nvidia Cosmos 3", detail: "Efficient · cinematic", creditsPerSecond: 20 },
+  { value: "COSMOS3SUPERI2V", label: "Nvidia Cosmos 3", detail: "Efficient · clear motion", creditsPerSecond: 20 },
   { value: "RUNWAYML", label: "Runway Gen-4.5", detail: "Versatile · default", creditsPerSecond: 30 },
   { value: "SEEDANCEI2V", label: "Seedance 1.5", detail: "Fluid motion", creditsPerSecond: 30 },
   { value: "VEO3.1I2VFAST", label: "Veo 3.1 Fast", detail: "Fast · high fidelity", creditsPerSecond: 36 },

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Creator Session — TMochiLearn",
-  description: "Resume and preview a TMochiLearn interactive film generation.",
+  description: "Resume and preview a TMochiLearn interactive lesson.",
 };
 
 export default async function CreatorSessionPage({

@@ -787,7 +787,7 @@ export function CompletedPlayer({ status, onClose, onPathChange }: CompletedPlay
           >
             <div>
               <span>Choice point {displayedChoice.point.level ? `· Level ${displayedChoice.point.level}` : ""}</span>
-              <h2>Where does the story go?</h2>
+              <h2>What should the learner explore next?</h2>
             </div>
             <div
               className={styles.playerChoiceGrid}

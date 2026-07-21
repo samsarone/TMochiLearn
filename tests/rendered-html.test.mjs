@@ -137,6 +137,9 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(page, /fullscreenPlaybackRef/);
   assert.match(page, /!selectedLeafPathId/);
   assert.match(page, /selectedLeafPathIdRef\.current = null/);
+  assert.match(page, /initialLeafPathId/);
+  assert.match(page, /openPlayerAtPath/);
+  assert.match(page, /variant="featured"/);
   assert.match(page, /descriptionExpanded/);
   assert.match(page, /is-idle-playing/);
   assert.match(page, /Learn Topics\./);
@@ -149,6 +152,8 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(page, /startPaused/);
   assert.match(page, /history\.pushState/);
   assert.match(page, /href=\{publicationPath\(publication\.id\)\}/);
+  assert.match(page, /limit: isLearn \? "200" : "30"/);
+  assert.match(page, /: isLearn\s+\? filtered\.filter/);
   assert.doesNotMatch(page, /autoPlay=/);
   assert.doesNotMatch(page, /requestAnimationFrame/);
   assert.doesNotMatch(page, /rel="preload" as="video"/);
@@ -156,6 +161,7 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(styles, /\.featured-landing/);
   assert.match(styles, /\.film-grid \{ grid-template-columns: repeat\(3/);
   assert.match(styles, /\.branch-map/);
+  assert.match(styles, /\.branch-map-featured/);
   assert.match(styles, /\.branch-track/);
   assert.match(styles, /\.flat-branch-tree/);
   assert.match(styles, /\.flat-tree-edges/);
@@ -163,7 +169,7 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(styles, /\.branch-leaf-end \{[^}]*pointer-events: auto/);
   assert.match(styles, /\.flat-tree-node\.branch-leaf:not\(\.is-selected\) \{ animation: leaf-lock-cue/);
   assert.match(styles, /\.featured-title/);
-  assert.match(styles, /\.featured-landing \{[^}]*aspect-ratio: 16\/9/);
+  assert.match(styles, /\.featured-media \{[^}]*aspect-ratio: 16\/9/);
   assert.match(styles, /\.site-header \.site-nav \{ margin-left: 8px/);
   assert.match(styles, /\.player-shell\.is-standard\.is-idle-playing/);
   assert.match(styles, /is-idle-playing \.watch-header \{ opacity: \.46/);
@@ -309,7 +315,9 @@ test("wires Creator Studio to shared auth, unified generation, detailed polling,
   assert.doesNotMatch(studio, /Interactive cinema engine/);
   assert.doesNotMatch(studio, /Public feed/);
   assert.doesNotMatch(studio, /avatarUrl/);
-  assert.match(studio, /Direct every <em>possible path\.<\/em>/);
+  assert.match(studio, /Create a <em>learning video\.<\/em>/);
+  assert.match(studio, /educational, technical, or training lesson/);
+  assert.doesNotMatch(studio, /Direct every|transmission|interactive film/i);
   assert.match(branchPreview, /audio_timeline/);
   assert.match(branchPreview, /chooseRandomPath/);
   assert.match(branchPreview, /sessionAspectRatio/);
