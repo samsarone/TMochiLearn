@@ -8,11 +8,6 @@
   <a href="https://github.com/samsarone/TmochiLearn/actions/workflows/ci.yml"><img src="https://github.com/samsarone/TmochiLearn/actions/workflows/ci.yml/badge.svg" alt="Tests" /></a>
 </p>
 
-<p align="center">
-  Built with <a href="https://openai.com/codex/"><img src="https://img.shields.io/badge/Codex-000000?logo=openai&logoColor=white" alt="Codex" /></a> using GPT 5.6 Sol in High and Ultra settings, with manual QA, verification, and code debugging.<br />
-  Submission for the <a href="https://openai.devpost.com/">OpenAI Devpost hackathon</a>.
-</p>
-
 TMochiLearn turns a single topic into an interactive lesson with choices,
 alternate explanations, and outcomes shaped by the learner. Describe what you
 want to teach, choose how deeply it should branch, and generate a complete
@@ -21,6 +16,10 @@ learning-path tree.
 Every path belongs to one connected learning experience. Learners can explore
 different approaches, see the consequences of each choice, and build a deeper
 understanding of educational and technical subjects.
+
+Built with [Codex](https://openai.com/codex/) using GPT 5.6 Sol in High and Ultra
+settings, with manual QA, verification, and code debugging.<br />
+Submission for the [OpenAI Devpost hackathon](https://openai.devpost.com/).
 
 ## Don’t just watch. Explore.
 
