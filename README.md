@@ -127,6 +127,50 @@ For Vercel, use the Next.js framework preset and the standard `npm run build`
 output. The optional Cloudflare Worker workflow is available through
 `npm run dev:worker`, `npm run build:worker`, and `npm run start:worker`.
 
+### Docker and nginx
+
+The production image runs the full Next.js standalone server, including SSR,
+route handlers, authentication, and request-derived Open Graph metadata:
+
+```bash
+docker build -t tmochi-learn:latest .
+docker run --rm -p 3001:3000 \
+  -e SAMSAR_API_BASE_URL=https://api.samsar.one/v1 \
+  tmochi-learn:latest
+```
+
+`SAMSAR_API_BASE_URL` and the optional comma-separated
+`SAMSAR_ARTIFACT_HOSTS` setting are runtime variables and can be supplied by
+Docker Compose or the container platform. The server listens on
+`0.0.0.0:3000`, runs as an unprivileged user, and exposes `GET /api/health`.
+
+The application and nginx must share a Docker network. A minimal Compose
+service looks like this:
+
+```yaml
+services:
+  tmochi-learn:
+    image: tmochi-learn:latest
+    build:
+      context: .
+    environment:
+      SAMSAR_API_BASE_URL: https://api.samsar.one/v1
+    expose:
+      - "3000"
+    restart: unless-stopped
+    networks:
+      - web
+
+networks:
+  web:
+```
+
+`nginx.conf.example` contains the matching upstream and forwarded headers.
+Replace its catch-all `server_name` with the production hostname in the
+TLS-enabled configuration. Forwarding `Host`, `X-Forwarded-Host`, and
+`X-Forwarded-Proto` is required because TMochiLearn uses them to generate
+absolute canonical and social metadata.
+
 </details>
 
 <h2 align="center">Demo</h2>

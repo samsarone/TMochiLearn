@@ -9,6 +9,7 @@
     "dev": "next dev",
     "dev:production-catalog": "SAMSAR_API_BASE_URL=https://api.samsar.one/v1 next dev",
     "build": "next build",
+    "docker:build": "docker build -t tmochi-learn:latest .",
     "start": "next start",
     "dev:worker": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build:worker": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
@@ -19,7 +20,7 @@
   "dependencies": {
     "fflate": "^0.8.3",
     "lucide-react": "^1.25.0",
-    "next": "16.2.6",
+    "next": "16.2.11",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "samsar-js": "0.48.48"
@@ -34,7 +35,7 @@
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.2.11",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
