@@ -32,8 +32,14 @@ import {
 } from "../../lib/client-auth";
 import {
   CREATOR_REQUEST_STORAGE_KEY,
+  CREATOR_INFERENCE_EFFORT_OPTIONS,
   SAMSAR_BILLING_URL,
   estimateInteractiveCredits,
+  inferCreatorInferenceEffort,
+  normalizeCreatorInferenceEffort,
+  normalizeCreatorInferenceModel,
+  type CreatorInferenceEffort,
+  type CreatorInferenceModelOption,
   type CreatorImageModelOption,
   type CreatorVideoModelOption,
 } from "../../lib/creator-config";
@@ -60,6 +66,8 @@ type GenerateResponse = {
 type CreatorForm = {
   prompt: string;
   duration: number;
+  inferenceModel: string;
+  inferenceEffort: CreatorInferenceEffort;
   imageModel: string;
   videoModel: string;
   levels: number;
@@ -71,7 +79,7 @@ type PendingGenerationSubmission = {
 };
 
 type StoredCreatorState = {
-  version: 3;
+  version: 4 | 5;
   sessionId: string;
   form: CreatorForm;
   pendingSubmission?: PendingGenerationSubmission;
@@ -308,17 +316,25 @@ function collectArtifactUrls(value: unknown, urls = new Set<string>(), key = "")
 
 function normalizeStoredForm(
   value: unknown,
+  inferenceModels: ReadonlyArray<CreatorInferenceModelOption>,
   imageModels: ReadonlyArray<CreatorImageModelOption>,
   videoModels: ReadonlyArray<CreatorVideoModelOption>,
 ): CreatorForm | null {
   if (!value || typeof value !== "object") return null;
   const stored = value as Partial<CreatorForm>;
+  const inferenceModel = normalizeCreatorInferenceModel(stored.inferenceModel);
+  const inferenceEffort = inferCreatorInferenceEffort(
+    stored.inferenceModel,
+    stored.inferenceEffort,
+  );
   if (
     typeof stored.prompt !== "string" ||
+    typeof stored.inferenceModel !== "string" ||
     typeof stored.imageModel !== "string" ||
     typeof stored.videoModel !== "string" ||
     !Number.isFinite(Number(stored.duration)) ||
     !Number.isInteger(Number(stored.levels)) ||
+    !inferenceModels.some((model) => model.value === inferenceModel) ||
     !imageModels.some((model) => model.value === stored.imageModel) ||
     !videoModels.some((model) => model.value === stored.videoModel)
   ) {
@@ -327,6 +343,8 @@ function normalizeStoredForm(
   return {
     prompt: stored.prompt.slice(0, 4000),
     duration: Math.min(180, Math.max(30, Number(stored.duration))),
+    inferenceModel,
+    inferenceEffort,
     imageModel: stored.imageModel,
     videoModel: stored.videoModel,
     levels: Math.min(3, Math.max(1, Number(stored.levels))),
@@ -356,15 +374,19 @@ export default function CreatorStudio({
   initialUser,
   initialSessionId = "",
   initialDraft = false,
+  initialInferenceModels,
   initialImageModels,
   initialVideoModels,
+  deploymentEdition,
   initialModelCatalogError = null,
 }: {
   initialUser: CreatorUser;
   initialSessionId?: string;
   initialDraft?: boolean;
+  initialInferenceModels: ReadonlyArray<CreatorInferenceModelOption>;
   initialImageModels: ReadonlyArray<CreatorImageModelOption>;
   initialVideoModels: ReadonlyArray<CreatorVideoModelOption>;
+  deploymentEdition: "production" | "standalone";
   initialModelCatalogError?: string | null;
 }) {
   const router = useRouter();
@@ -372,6 +394,8 @@ export default function CreatorStudio({
   const [form, setForm] = useState<CreatorForm>({
     prompt: "",
     duration: 30,
+    inferenceModel: initialInferenceModels[0]?.value || "",
+    inferenceEffort: "high",
     imageModel: initialImageModels[0]?.value || "",
     videoModel: initialVideoModels[0]?.value || "",
     levels: DEFAULT_BRANCHING_LEVELS,
@@ -400,6 +424,22 @@ export default function CreatorStudio({
   const draftCreationRef = useRef(false);
   const storageScope = initialUser.id || initialUser.email || initialUser.username || "creator";
   const creatorStorageKey = `${CREATOR_REQUEST_STORAGE_KEY}:${storageScope}`;
+  const isStandaloneDeployment = deploymentEdition === "standalone";
+  const hasRequiredBranchedModels = Boolean(
+    initialInferenceModels.length &&
+    initialImageModels.length &&
+    initialVideoModels.length,
+  );
+  const unavailableModelTypes = [
+    !initialInferenceModels.length ? "inference" : "",
+    !initialImageModels.length ? "image" : "",
+    !initialVideoModels.length ? "video" : "",
+  ].filter(Boolean);
+  const modelAvailabilityMessage = unavailableModelTypes.length
+    ? isStandaloneDeployment
+      ? `Configure at least one branched ${unavailableModelTypes.join(", ")} model to run this pipeline.`
+      : `Required branched ${unavailableModelTypes.join(", ")} model options are unavailable.`
+    : null;
 
   const estimatedCredits = useMemo(
     () => estimateInteractiveCredits(
@@ -422,7 +462,10 @@ export default function CreatorStudio({
   const progress = Math.min(100, Math.max(0, resolveProgress(status)));
   const stage = resolveStage(status, renderStarted);
   const creditsCharged = resolveCreditsCharged(status);
-  const balanceMayBeShort = !renderStarted && user.generationCredits < estimatedCredits;
+  const balanceMayBeShort =
+    !isStandaloneDeployment &&
+    !renderStarted &&
+    user.generationCredits < estimatedCredits;
 
   const refreshUser = useCallback(async () => {
     try {
@@ -492,17 +535,18 @@ export default function CreatorStudio({
       const savedSessionId = typeof saved.sessionId === "string"
         ? saved.sessionId.trim()
         : "";
-      if (saved.version !== 3 || !requestId || savedSessionId !== requestId) {
+      if (![4, 5].includes(Number(saved.version)) || !requestId || savedSessionId !== requestId) {
         window.localStorage.removeItem(creatorStorageKey);
         return;
       }
       const savedForm = normalizeStoredForm(
         saved.form,
+        initialInferenceModels,
         initialImageModels,
         initialVideoModels,
       );
       const pending = saved.pendingSubmission;
-      const savedPending =
+      const savedPending = saved.version === 5 &&
         pending &&
         typeof pending.id === "string" &&
         pending.id.trim() &&
@@ -517,7 +561,7 @@ export default function CreatorStudio({
     } catch {
       window.localStorage.removeItem(creatorStorageKey);
     }
-  }, [creatorStorageKey, initialImageModels, initialVideoModels, requestId]);
+  }, [creatorStorageKey, initialImageModels, initialInferenceModels, initialVideoModels, requestId]);
 
   useEffect(() => {
     latestRequestRef.current = requestId;
@@ -545,7 +589,7 @@ export default function CreatorStudio({
           returnToSignIn();
           return;
         }
-        if (response.status === 402) {
+        if (response.status === 402 && !isStandaloneDeployment) {
           window.location.assign(billingUrl());
           return;
         }
@@ -583,6 +627,19 @@ export default function CreatorStudio({
         setError(null);
         const responseRecord = next as Record<string, unknown>;
         const sessionRecord = next.session as Record<string, unknown> | null | undefined;
+        const nextInferenceModel =
+          sessionRecord?.inference_model ?? sessionRecord?.inferenceModel ??
+          sessionRecord?.expressGenerationInferenceModel ??
+          responseRecord.inference_model ?? responseRecord.inferenceModel ??
+          responseRecord.expressGenerationInferenceModel;
+        const nextInferenceEffort =
+          sessionRecord?.inference_effort ?? sessionRecord?.inferenceEffort ??
+          sessionRecord?.effort ?? sessionRecord?.reasoning_effort ??
+          sessionRecord?.expressGenerationInferenceEffort ??
+          responseRecord.inference_effort ?? responseRecord.inferenceEffort ??
+          responseRecord.effort ?? responseRecord.reasoning_effort ??
+          responseRecord.expressGenerationInferenceEffort;
+        const normalizedNextInferenceModel = normalizeCreatorInferenceModel(nextInferenceModel);
         const nextImageModel =
           sessionRecord?.image_model ?? sessionRecord?.imageModel ??
           responseRecord.image_model ?? responseRecord.imageModel;
@@ -603,6 +660,12 @@ export default function CreatorStudio({
               duration: Number.isFinite(Number(nextDuration))
                 ? Math.min(180, Math.max(30, Number(nextDuration)))
                 : current.duration,
+              inferenceModel: initialInferenceModels.some((model) => model.value === normalizedNextInferenceModel)
+                ? normalizedNextInferenceModel
+                : current.inferenceModel,
+              inferenceEffort: normalizedNextInferenceModel === "gpt-5.6-sol"
+                ? inferCreatorInferenceEffort(nextInferenceModel, nextInferenceEffort)
+                : current.inferenceEffort,
               imageModel: initialImageModels.some((model) => model.value === nextImageModel)
                 ? nextImageModel as string
                 : current.imageModel,
@@ -631,7 +694,12 @@ export default function CreatorStudio({
           setPolling(false);
           void refreshUser();
           const failureText = `${statusMessage(next) || ""}`.toLowerCase();
-          if (isFailed(next) && failureText.includes("insufficient") && failureText.includes("credit")) {
+          if (
+            !isStandaloneDeployment &&
+            isFailed(next) &&
+            failureText.includes("insufficient") &&
+            failureText.includes("credit")
+          ) {
             window.location.assign(billingUrl());
           }
           return;
@@ -656,7 +724,15 @@ export default function CreatorStudio({
       disposed = true;
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [initialDraft, initialImageModels, initialVideoModels, refreshUser, requestId]);
+  }, [
+    initialDraft,
+    initialImageModels,
+    initialInferenceModels,
+    initialVideoModels,
+    isStandaloneDeployment,
+    refreshUser,
+    requestId,
+  ]);
 
   async function generate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -669,13 +745,18 @@ export default function CreatorStudio({
       return;
     }
     if (
+      !initialInferenceModels.some((model) => model.value === form.inferenceModel) ||
       !initialImageModels.some((model) => model.value === form.imageModel) ||
       !initialVideoModels.some((model) => model.value === form.videoModel)
     ) {
-      setError(initialModelCatalogError || "Choose currently supported Express models.");
+      setError(
+        initialModelCatalogError ||
+        modelAvailabilityMessage ||
+        "Choose currently supported branched generation models.",
+      );
       return;
     }
-    if (user.generationCredits <= 0) {
+    if (!isStandaloneDeployment && user.generationCredits <= 0) {
       window.location.assign(billingUrl());
       return;
     }
@@ -691,6 +772,8 @@ export default function CreatorStudio({
       const generationPayload = {
         prompt: form.prompt.trim(),
         duration: form.duration,
+        inference_model: form.inferenceModel,
+        ...(form.inferenceModel === "gpt-5.6-sol" ? { effort: form.inferenceEffort } : {}),
         image_model: form.imageModel,
         video_model: form.videoModel,
         num_levels: form.levels,
@@ -706,7 +789,7 @@ export default function CreatorStudio({
       );
       pendingSubmissionRef.current = { id: clientRequestId, fingerprint };
       window.localStorage.setItem(creatorStorageKey, JSON.stringify({
-        version: 3,
+        version: 5,
         sessionId: submittedDraftId,
         form,
         pendingSubmission: pendingSubmissionRef.current,
@@ -727,10 +810,10 @@ export default function CreatorStudio({
         returnToSignIn();
         return;
       }
-      if (response.status === 402) {
+      if (response.status === 402 && !isStandaloneDeployment) {
         pendingSubmissionRef.current = null;
         window.localStorage.setItem(creatorStorageKey, JSON.stringify({
-          version: 3,
+          version: 5,
           sessionId: submittedDraftId,
           form,
         } satisfies StoredCreatorState));
@@ -750,12 +833,13 @@ export default function CreatorStudio({
           router.replace(`/creator/${encodeURIComponent(submittedDraftId)}`, { scroll: false });
         }
         if (
+          !isStandaloneDeployment &&
           generationMessage.toLowerCase().includes("insufficient") &&
           generationMessage.toLowerCase().includes("credit")
         ) {
           pendingSubmissionRef.current = null;
           window.localStorage.setItem(creatorStorageKey, JSON.stringify({
-            version: 3,
+            version: 5,
             sessionId: submittedDraftId,
             form,
           } satisfies StoredCreatorState));
@@ -769,7 +853,7 @@ export default function CreatorStudio({
         ) {
           pendingSubmissionRef.current = null;
           window.localStorage.setItem(creatorStorageKey, JSON.stringify({
-            version: 3,
+            version: 5,
             sessionId: submittedDraftId,
             form,
           } satisfies StoredCreatorState));
@@ -780,7 +864,7 @@ export default function CreatorStudio({
       if (!nextRequestId) throw new Error("Samsar did not return a render request ID.");
       pendingSubmissionRef.current = null;
       window.localStorage.setItem(creatorStorageKey, JSON.stringify({
-        version: 3,
+        version: 5,
         sessionId: nextRequestId,
         form,
       } satisfies StoredCreatorState));
@@ -823,7 +907,7 @@ export default function CreatorStudio({
       }
       pendingSubmissionRef.current = null;
       window.localStorage.setItem(creatorStorageKey, JSON.stringify({
-        version: 3,
+        version: 5,
         sessionId: result.sessionId,
         form: reusableSettings,
       } satisfies StoredCreatorState));
@@ -1052,33 +1136,82 @@ export default function CreatorStudio({
               <div className={styles.rangeTicks}><span>30 sec</span><span>3 min</span></div>
             </div>
 
-            <div className={styles.selectGrid}>
-              <label>
-                <span>Visual model</span>
-                <div className={styles.selectWrap}>
-                  <select
-                    value={form.imageModel}
-                    onChange={(event) => setForm((current) => ({ ...current, imageModel: event.target.value }))}
-                    disabled={inProgress || generating || !initialImageModels.length}
-                  >
-                    {initialImageModels.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
-                  </select>
-                  <ChevronDown size={14} />
-                </div>
-              </label>
-              <label>
-                <span>Motion model</span>
-                <div className={styles.selectWrap}>
-                  <select
-                    value={form.videoModel}
-                    onChange={(event) => setForm((current) => ({ ...current, videoModel: event.target.value }))}
-                    disabled={inProgress || generating || !initialVideoModels.length}
-                  >
-                    {initialVideoModels.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
-                  </select>
-                  <ChevronDown size={14} />
-                </div>
-              </label>
+            <div className={styles.modelSelects}>
+              <div className={styles.selectGrid}>
+                <label>
+                  <span>Inference model</span>
+                  <div className={styles.selectWrap}>
+                    <select
+                      value={form.inferenceModel}
+                      onChange={(event) => setForm((current) => ({
+                        ...current,
+                        inferenceModel: normalizeCreatorInferenceModel(event.target.value),
+                      }))}
+                      disabled={inProgress || generating || !initialInferenceModels.length}
+                    >
+                      {!initialInferenceModels.length && <option value="">No branched inference model available</option>}
+                      {initialInferenceModels.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
+                    </select>
+                    <ChevronDown size={14} />
+                  </div>
+                </label>
+                {form.inferenceModel === "gpt-5.6-sol" && (
+                  <label>
+                    <span>Inference effort</span>
+                    <div className={styles.selectWrap}>
+                      <select
+                        value={form.inferenceEffort}
+                        onChange={(event) => setForm((current) => ({
+                          ...current,
+                          inferenceEffort:
+                            normalizeCreatorInferenceEffort(event.target.value) || "high",
+                        }))}
+                        disabled={inProgress || generating}
+                        title={CREATOR_INFERENCE_EFFORT_OPTIONS.find(
+                          (option) => option.value === form.inferenceEffort,
+                        )?.detail}
+                      >
+                        {CREATOR_INFERENCE_EFFORT_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value} title={option.detail}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} />
+                    </div>
+                  </label>
+                )}
+              </div>
+              <div className={styles.selectGrid}>
+                <label>
+                  <span>Visual model</span>
+                  <div className={styles.selectWrap}>
+                    <select
+                      value={form.imageModel}
+                      onChange={(event) => setForm((current) => ({ ...current, imageModel: event.target.value }))}
+                      disabled={inProgress || generating || !initialImageModels.length}
+                    >
+                      {!initialImageModels.length && <option value="">No branched image model available</option>}
+                      {initialImageModels.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
+                    </select>
+                    <ChevronDown size={14} />
+                  </div>
+                </label>
+                <label>
+                  <span>Motion model</span>
+                  <div className={styles.selectWrap}>
+                    <select
+                      value={form.videoModel}
+                      onChange={(event) => setForm((current) => ({ ...current, videoModel: event.target.value }))}
+                      disabled={inProgress || generating || !initialVideoModels.length}
+                    >
+                      {!initialVideoModels.length && <option value="">No branched video model available</option>}
+                      {initialVideoModels.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
+                    </select>
+                    <ChevronDown size={14} />
+                  </div>
+                </label>
+              </div>
             </div>
 
             <fieldset className={styles.levelField} disabled={inProgress || generating}>
@@ -1103,6 +1236,9 @@ export default function CreatorStudio({
             </fieldset>
 
             {error && <div className={styles.formError} role="alert">{error}</div>}
+            {modelAvailabilityMessage && !error && (
+              <div className={styles.formError} role="alert">{modelAvailabilityMessage}</div>
+            )}
             {balanceMayBeShort && !inProgress && (
               <div className={styles.creditWarning}>
                 <CircleDollarSign size={16} />
@@ -1116,8 +1252,10 @@ export default function CreatorStudio({
               disabled={
                 generating ||
                 !form.prompt.trim() ||
+                !form.inferenceModel ||
                 !form.imageModel ||
                 !form.videoModel ||
+                !hasRequiredBranchedModels ||
                 !sessionChecked ||
                 !isDraft ||
                 renderStarted
@@ -1134,7 +1272,9 @@ export default function CreatorStudio({
                         ? "Generation complete"
                         : failed
                           ? "Session unavailable"
-                          : "Create interactive video"}</span>
+                          : !hasRequiredBranchedModels
+                            ? "Configure required models"
+                            : "Create interactive video"}</span>
                 {!generating && !renderStarted && <Zap size={15} />}
             </button>
             {renderStarted && (

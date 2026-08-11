@@ -33,8 +33,10 @@ export default async function CreatorSessionPage({
       initialUser={user}
       initialSessionId={normalizedSessionId}
       initialDraft={draft === "1"}
+      initialInferenceModels={catalog.inferenceModels}
       initialImageModels={catalog.imageModels}
       initialVideoModels={catalog.videoModels}
+      deploymentEdition={catalog.deploymentEdition}
       initialModelCatalogError={error}
     />
   );

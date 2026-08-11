@@ -543,6 +543,8 @@
 
 .rangeTicks { display: flex; justify-content: space-between; color: #7f887b; font: 10px var(--font-mono), monospace; }
 
+.modelSelects { display: grid; gap: 11px; }
+.fullSelectField { min-width: 0; display: grid; gap: 8px; }
 .selectGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 .selectGrid > label { min-width: 0; display: grid; gap: 8px; }
 

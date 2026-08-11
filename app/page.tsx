@@ -31,6 +31,13 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { flushSync } from "react-dom";
 import { TMochiLearnLogo } from "../components/tmochi-learn-logo";
+import {
+  getBufferedInteractiveVideoPaths,
+  getInteractiveVideoPreloadMode,
+  getMountedInteractiveVideoPaths,
+  pathForOption,
+  shouldCacheNextChoiceThumbnails,
+} from "../lib/interactive-player-preload";
 
 type PublicationResponse = {
   items: CatalogPublication[];
@@ -197,20 +204,6 @@ const formatTime = (seconds: number) => {
   if (!Number.isFinite(seconds)) return "0:00";
   const rounded = Math.max(0, Math.floor(seconds));
   return `${Math.floor(rounded / 60)}:${String(rounded % 60).padStart(2, "0")}`;
-};
-
-const pathForOption = (
-  option: InteractivePublicationChoiceOption,
-  paths: InteractivePublicationVideoPath[],
-  currentPathId: string,
-  defaultPathId: string,
-) => {
-  const eligible = paths.filter((path) => option.leaf_path_ids.includes(path.path_id));
-  return (
-    eligible.find((path) => path.path_id === currentPathId) ??
-    eligible.find((path) => path.path_id === defaultPathId) ??
-    [...eligible].sort((a, b) => (a.ordinal ?? 999) - (b.ordinal ?? 999))[0]
-  );
 };
 
 function FeaturedCtaCopy({
@@ -671,30 +664,21 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
       .sort((a, b) => a.switch_at_seconds - b.switch_at_seconds)[0];
   }, [activePathId, handledChoices, publication.manifest.tree.choice_points]);
 
-  const bufferedPaths = useMemo(() => {
-    if (isMobileLoading || !nextChoice) return [];
-    const candidates = nextChoice.options
-      .map((option) => pathForOption(
-        option,
-        paths,
-        activePathId,
-        publication.manifest.default_path_id,
-      ))
-      .filter((path): path is InteractivePublicationVideoPath => Boolean(path));
-    return candidates
-      .filter((path, index) =>
-        path.path_id !== activePathId &&
-        candidates.findIndex((candidate) => candidate.path_id === path.path_id) === index,
-      )
-      .slice(0, 2);
-  }, [activePathId, isMobileLoading, nextChoice, paths, publication.manifest.default_path_id]);
+  const bufferedPaths = useMemo(() => getBufferedInteractiveVideoPaths({
+    activePathId,
+    defaultPathId: publication.manifest.default_path_id,
+    isMobileLoading,
+    nextChoice,
+    paths,
+    selectedLeafPathId,
+  }), [activePathId, isMobileLoading, nextChoice, paths, publication.manifest.default_path_id, selectedLeafPathId]);
 
-  const mountedPaths = useMemo(() => {
-    if (!activePath) return bufferedPaths;
-    const selectedPath = paths.find((path) => path.path_id === selectedLeafPathId);
-    return [activePath, ...bufferedPaths, ...(selectedPath ? [selectedPath] : [])]
-      .filter((path, index, collection) => collection.findIndex((candidate) => candidate.path_id === path.path_id) === index);
-  }, [activePath, bufferedPaths, paths, selectedLeafPathId]);
+  const mountedPaths = useMemo(() => getMountedInteractiveVideoPaths({
+    activePath,
+    bufferedPaths,
+    paths,
+    selectedLeafPathId,
+  }), [activePath, bufferedPaths, paths, selectedLeafPathId]);
 
   const nextChoiceThumbnailUrls = useMemo(() => {
     if (!nextChoice) return [];
@@ -1020,11 +1004,14 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
   }, [clearChoiceTransitionWatch, restoreChoiceAudioVolume]);
 
   useEffect(() => {
-    if (
-      !nextChoice ||
-      (isMobileLoading && !playing) ||
-      nextChoice.switch_at_seconds - currentTime > CHOICE_PROMPT_LEAD_SECONDS
-    ) {
+    if (!shouldCacheNextChoiceThumbnails({
+      hasNextChoice: Boolean(nextChoice),
+      isMobileLoading,
+      leadSeconds: CHOICE_PROMPT_LEAD_SECONDS,
+      playing,
+      secondsUntilChoice: (nextChoice?.switch_at_seconds ?? Infinity) - currentTime,
+      selectedLeafPathId,
+    })) {
       return;
     }
 
@@ -1039,7 +1026,7 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
         void image.decode().catch(() => undefined);
       }
     });
-  }, [currentTime, isMobileLoading, nextChoice, nextChoiceThumbnailUrls, playing]);
+  }, [currentTime, isMobileLoading, nextChoice, nextChoiceThumbnailUrls, playing, selectedLeafPathId]);
 
   useEffect(() => {
     if (!nextChoice) return;
@@ -1488,7 +1475,12 @@ const InteractivePlayer = forwardRef<InteractivePlayerHandle, {
               data-path-id={path.path_id}
               src={contentUrl}
               poster={isActive ? publication.mainThumbnailUrl : undefined}
-              preload={isActive || !isMobileLoading ? "auto" : "none"}
+              preload={getInteractiveVideoPreloadMode({
+                isActive,
+                isMobileLoading,
+                pathId: path.path_id,
+                selectedLeafPathId,
+              })}
               playsInline
               tabIndex={isActive ? 0 : -1}
               aria-hidden={!isActive}

@@ -19,8 +19,10 @@ export default async function CreatorPage() {
   return (
     <CreatorStudio
       initialUser={user}
+      initialInferenceModels={catalog.inferenceModels}
       initialImageModels={catalog.imageModels}
       initialVideoModels={catalog.videoModels}
+      deploymentEdition={catalog.deploymentEdition}
       initialModelCatalogError={error}
     />
   );

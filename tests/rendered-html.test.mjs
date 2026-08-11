@@ -2,6 +2,178 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
+test("filters the Creator catalog to canonical models and preserves legacy Sol effort", async () => {
+  const {
+    createCreatorModelCatalog,
+    inferCreatorInferenceEffort,
+    normalizeCreatorInferenceModel,
+  } = await import(
+    new URL(`../lib/creator-config.ts?test=${Date.now()}`, import.meta.url)
+  );
+  const catalog = createCreatorModelCatalog({
+    INFERENCE_MODELS: [
+      { value: "gpt-5.6-sol", label: "Wrong fallback label", isBranchedInferenceModel: true },
+      { value: "gpt-5.6-sol-xhigh", isBranchedInferenceModel: true },
+      { value: "gemini-3.1-pro", isBranchedInferenceModel: false },
+      { value: "unflagged-inference" },
+    ],
+    IMAGE_MODELS: [
+      { value: "GPTIMAGE2", isBranchedImageModel: true },
+      { value: "NANOBANANAPRO", isBranchedImageModel: true },
+      { value: "SEEDREAM", isBranchedImageModel: false },
+      { value: "UNFLAGGED_IMAGE" },
+    ],
+    VIDEO_MODELS: [
+      {
+        value: "COSMOS3SUPERI2V",
+        isBranchedVideoModel: true,
+        pricingDistribution: { total: 20 },
+      },
+      { value: "VEO3.1I2V", isBranchedVideoModel: true, basePrice: 60 },
+      { value: "VEO3.1I2VFAST", isBranchedVideoModel: true, basePrice: 36 },
+      { value: "SEEDANCE2.0I2V", isBranchedVideoModel: true, basePrice: 40 },
+      { value: "RUNWAYML", isBranchedVideoModel: false },
+      { value: "UNFLAGGED_VIDEO" },
+    ],
+    deployment: { edition: "standalone" },
+  });
+
+  assert.equal(catalog.deploymentEdition, "standalone");
+  assert.deepEqual(
+    catalog.inferenceModels.map(({ value, label }) => ({ value, label })),
+    [
+      { value: "gpt-5.6-sol", label: "gpt-5.6-sol" },
+    ],
+  );
+  assert.deepEqual(catalog.imageModels.map((model) => model.value), [
+    "GPTIMAGE2",
+    "NANOBANANAPRO",
+  ]);
+  assert.deepEqual(catalog.videoModels.map((model) => model.value), [
+    "COSMOS3SUPERI2V",
+    "VEO3.1I2V",
+    "VEO3.1I2VFAST",
+    "SEEDANCE2.0I2V",
+  ]);
+  assert.deepEqual(
+    catalog.videoModels.map((model) => model.creditsPerSecond),
+    [20, 60, 36, 40],
+  );
+  assert.equal(normalizeCreatorInferenceModel("gpt-5.6-sol-high"), "gpt-5.6-sol");
+  assert.equal(normalizeCreatorInferenceModel("gpt-5.6-sol-xhigh"), "gpt-5.6-sol");
+  assert.equal(inferCreatorInferenceEffort("gpt-5.6-sol-xhigh"), "xhigh");
+  assert.equal(inferCreatorInferenceEffort("gpt-5.6-sol-xhigh", "high"), "high");
+});
+
+test("preserves empty standalone Creator model lists as valid availability", async () => {
+  const { createCreatorModelCatalog } = await import(
+    new URL(`../lib/creator-config.ts?empty=${Date.now()}`, import.meta.url)
+  );
+  const catalog = createCreatorModelCatalog({
+    INFERENCE_MODELS: [],
+    IMAGE_MODELS: [],
+    VIDEO_MODELS: [],
+    deployment: { edition: "standalone" },
+  });
+
+  assert.equal(catalog.deploymentEdition, "standalone");
+  assert.deepEqual(catalog.inferenceModels, []);
+  assert.deepEqual(catalog.imageModels, []);
+  assert.deepEqual(catalog.videoModels, []);
+});
+
+test("submits newly catalogued interactive models through the installed SDK", async () => {
+  const [{ default: SamsarClient }, { createCompatibleTextToInteractiveVideo }] = await Promise.all([
+    import("samsar-js"),
+    import(new URL(`../lib/samsar-client.ts?compat=${Date.now()}`, import.meta.url)),
+  ]);
+  const calls = [];
+  const client = new SamsarClient({
+    authToken: "  creator-session-token  ",
+    baseUrl: "https://processor.example/v1",
+    fetch: async (input, init) => {
+      calls.push({ input: String(input), init });
+      return new Response(JSON.stringify({
+        request_id: "507f1f77bcf86cd799439011",
+        session_id: "507f1f77bcf86cd799439011",
+        status: "PENDING",
+        narrative_type: "branched",
+      }), {
+        status: 202,
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+  const input = {
+    prompt: "An adaptive systems lesson",
+    duration: 30,
+    inference_model: "gpt-5.6-sol",
+    effort: "xhigh",
+    image_model: "GPTIMAGE2",
+    video_model: "SEEDANCE2.0I2V",
+    num_levels: 2,
+    session_id: "507f1f77bcf86cd799439011",
+  };
+  const result = await createCompatibleTextToInteractiveVideo(client, input, {
+    idempotencyKey: "tmochi-compatible-request",
+    webhookUrl: "https://example.com/tmochi-hook",
+  });
+
+  assert.equal(result.status, 202);
+  assert.equal(result.data.request_id, "507f1f77bcf86cd799439011");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].input, "https://processor.example/v2/text_to_interactive_video");
+  assert.equal(calls[0].init.headers.Authorization, "Bearer creator-session-token");
+  assert.equal(calls[0].init.headers["Idempotency-Key"], "tmochi-compatible-request");
+  assert.deepEqual(JSON.parse(calls[0].init.body), {
+    input,
+    webhookUrl: "https://example.com/tmochi-hook",
+  });
+});
+
+test("does not retry API errors through the interactive model compatibility path", async () => {
+  const [
+    { default: SamsarClient, SamsarRequestError },
+    { createCompatibleTextToInteractiveVideo },
+  ] = await Promise.all([
+    import("samsar-js"),
+    import(new URL(`../lib/samsar-client.ts?api-error=${Date.now()}`, import.meta.url)),
+  ]);
+  let fetchCalls = 0;
+  const client = new SamsarClient({
+    authToken: "creator-session-token",
+    baseUrl: "https://processor.example/v1",
+    fetch: async () => {
+      fetchCalls += 1;
+      return new Response(JSON.stringify({
+        message: "The selected provider is temporarily unavailable.",
+        code: "MODEL_UNAVAILABLE",
+      }), {
+        status: 422,
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+
+  await assert.rejects(
+    () => createCompatibleTextToInteractiveVideo(client, {
+      prompt: "An adaptive systems lesson",
+      duration: 30,
+      inference_model: "gpt-5.6-sol",
+      effort: "xhigh",
+      image_model: "GPTIMAGE2",
+      video_model: "SEEDANCE2.0I2V",
+      num_levels: 2,
+    }),
+    (error) => (
+      error instanceof SamsarRequestError &&
+      error.status === 422 &&
+      error.body?.code === "MODEL_UNAVAILABLE"
+    ),
+  );
+  assert.equal(fetchCalls, 1);
+});
+
 async function render(pathname = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
@@ -129,9 +301,10 @@ test("keeps the viewer wired to the public interactive publication contract", as
   assert.match(page, /is-preloading/);
   assert.match(page, /primeBranchFrame/);
   assert.match(page, /MOBILE_PLAYER_MEDIA_QUERY/);
-  assert.match(page, /if \(isMobileLoading \|\| !nextChoice\) return \[\]/);
-  assert.match(page, /preload=\{isActive \|\| !isMobileLoading \? "auto" : "none"\}/);
-  assert.match(page, /\(isMobileLoading && !playing\)/);
+  assert.match(page, /getBufferedInteractiveVideoPaths/);
+  assert.match(page, /getMountedInteractiveVideoPaths/);
+  assert.match(page, /getInteractiveVideoPreloadMode/);
+  assert.match(page, /shouldCacheNextChoiceThumbnails/);
   assert.match(page, /preloadedThumbnailUrlsRef/);
   assert.match(page, /nextChoiceThumbnailUrls/);
   assert.match(page, /image\.decode\(\)/);
@@ -266,9 +439,11 @@ test("wires Creator Studio to shared auth, unified generation, detailed polling,
 
   assert.match(creatorPage, /verifySamsarUser/);
   assert.match(creatorPage, /loadCreatorModelCatalog/);
+  assert.match(creatorPage, /initialInferenceModels=\{catalog\.inferenceModels\}/);
   assert.match(creatorPage, /initialImageModels=\{catalog\.imageModels\}/);
   assert.match(creatorSessionPage, /initialSessionId=\{normalizedSessionId\}/);
   assert.match(creatorSessionPage, /loadCreatorModelCatalog/);
+  assert.match(creatorSessionPage, /deploymentEdition=\{catalog\.deploymentEdition\}/);
   assert.match(creatorSessionPage, /params:\s*Promise<\{ sessionId: string \}>/);
   assert.match(loginRoute, /users\/login/);
   assert.match(loginRoute, /\{ authToken, user:/);
@@ -285,9 +460,11 @@ test("wires Creator Studio to shared auth, unified generation, detailed polling,
   assert.match(creatorLogin, /\/api\/auth\/register/);
   assert.match(creatorLogin, /persistAuthToken\(result\.authToken\)/);
   assert.match(creatorLogin, /Authorization: `Bearer \$\{token\}`/);
-  assert.match(generateRoute, /createV2TextToInteractiveVideo/);
+  assert.match(generateRoute, /createCompatibleTextToInteractiveVideo/);
   assert.match(generateRoute, /getCreatorModelCatalog/);
+  assert.match(generateRoute, /modelCatalog\.inferenceModels\.some/);
   assert.match(generateRoute, /modelCatalog\.imageModels\.some/);
+  assert.match(generateRoute, /inference_model: inferenceModel/);
   assert.doesNotMatch(generateRoute, /IMAGE_MODELS/);
   assert.doesNotMatch(generateRoute, /\.postV2</);
   assert.match(generateRoute, /draft_session_id/);
@@ -313,10 +490,19 @@ test("wires Creator Studio to shared auth, unified generation, detailed polling,
   assert.match(artifactRoute, /redirect:\s*"manual"/);
   assert.doesNotMatch(artifactRoute, /endsWith\("\.cloudfront\.net"\)/);
   assert.match(studio, /CREATOR_REQUEST_STORAGE_KEY/);
+  assert.match(studio, /initialInferenceModels\.map/);
   assert.match(studio, /initialImageModels\.map/);
   assert.match(studio, /initialVideoModels\.map/);
   assert.doesNotMatch(studio, /NANOBANANA2/);
+  assert.match(studio, /\[4, 5\]\.includes\(Number\(saved\.version\)\)/);
   assert.match(studio, /savedSessionId !== requestId/);
+  assert.match(studio, /inference_model: form\.inferenceModel/);
+  assert.match(studio, /effort: form\.inferenceEffort/);
+  assert.match(studio, /Inference effort/);
+  assert.match(generateRoute, /normalizeCreatorInferenceModel/);
+  assert.match(generateRoute, /effort: inferenceEffort/);
+  assert.match(studio, /!hasRequiredBranchedModels/);
+  assert.match(studio, /!isStandaloneDeployment && user\.generationCredits <= 0/);
   assert.match(studio, /levels: DEFAULT_BRANCHING_LEVELS/);
   assert.match(studio, /POLL_INTERVAL_MS/);
   assert.match(studio, /pendingSubmissionRef/);
@@ -380,13 +566,21 @@ test("wires Creator Studio to shared auth, unified generation, detailed polling,
   assert.match(creatorStyles, /\.previewMedia\s*\{[^}]*object-fit:\s*contain/);
   assert.match(creatorStyles, /\.previewStage\[data-orientation="portrait"\]/);
   assert.match(samsarClient, /authToken/);
+  assert.match(samsarClient, /client\.createV2TextToInteractiveVideo/);
+  assert.match(samsarClient, /client\.postV2<TextToInteractiveVideoCreateResponse>/);
+  assert.match(samsarClient, /isLegacyInteractiveModelValidationError/);
   assert.doesNotMatch(samsarClient, /apiKey[,\s:]/);
   assert.match(samsarAuth, /verifyWithConfiguredToken\(\)/);
   assert.doesNotMatch(samsarAuth, /verifyClientSession\(\{\s*authToken/);
   assert.match(creatorModelCatalog, /video\/supported_models/);
   assert.match(creatorModelCatalog, /cache: "no-store"/);
+  assert.match(creatorModelCatalog, /Array\.isArray\(record\.INFERENCE_MODELS\)/);
+  assert.doesNotMatch(creatorModelCatalog, /!catalog\.imageModels\.length/);
   assert.doesNotMatch(creatorModelCatalog, /Authorization/);
   assert.match(creatorConfig, /availability and request validation always come from Samsar/);
+  assert.match(creatorConfig, /model\.isBranchedInferenceModel === true/);
+  assert.match(creatorConfig, /model\.isBranchedImageModel === true/);
+  assert.match(creatorConfig, /model\.isBranchedVideoModel === true/);
   assert.doesNotMatch(creatorConfig, /NANOBANANA2/);
   assert.match(packageJson, /"fflate"/);
 });

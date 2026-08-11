@@ -1,4 +1,5 @@
 import type {
+  ExternalNarrativeInferenceModel,
   ExternalNarrativeVideoModel,
   TextToInteractiveVideoImageModel,
 } from "samsar-js";
@@ -7,10 +8,16 @@ import {
   getCreatorModelCatalog,
 } from "../../../../lib/creator-model-catalog";
 import {
+  inferCreatorInferenceEffort,
+  normalizeCreatorInferenceEffort,
+  normalizeCreatorInferenceModel,
+} from "../../../../lib/creator-config";
+import {
   getAuthenticatedSamsarClient,
   samsarErrorResponse,
   unauthorizedResponse,
 } from "../../../../lib/samsar-auth";
+import { createCompatibleTextToInteractiveVideo } from "../../../../lib/samsar-client";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +43,16 @@ export async function POST(request: Request) {
   const prompt = stringValue(body.prompt);
   const duration = Number(body.duration);
   const numLevels = Number(body.num_levels ?? body.numLevels);
+  const rawInferenceModel = stringValue(body.inference_model ?? body.inferenceModel);
+  const inferenceModel = normalizeCreatorInferenceModel(
+    rawInferenceModel,
+  ) as ExternalNarrativeInferenceModel;
+  const rawInferenceEffort = body.effort ?? body.reasoning_effort ?? body.reasoningEffort;
+  const explicitInferenceEffort = normalizeCreatorInferenceEffort(rawInferenceEffort);
+  const inferenceEffort = inferCreatorInferenceEffort(
+    rawInferenceModel,
+    explicitInferenceEffort,
+  );
   const imageModel = stringValue(body.image_model ?? body.imageModel) as TextToInteractiveVideoImageModel;
   const videoModel = stringValue(body.video_model ?? body.videoModel) as ExternalNarrativeVideoModel;
   const clientRequestId = stringValue(body.client_request_id ?? body.clientRequestId);
@@ -70,15 +87,27 @@ export async function POST(request: Request) {
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
+  if (rawInferenceEffort !== undefined && !explicitInferenceEffort) {
+    return Response.json(
+      { error: "Inference effort must be high or xhigh." },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (!modelCatalog.inferenceModels.some((model) => model.value === inferenceModel)) {
+    return Response.json(
+      { error: "Choose a supported branched inference model." },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
   if (!modelCatalog.imageModels.some((model) => model.value === imageModel)) {
     return Response.json(
-      { error: "Choose a supported image model." },
+      { error: "Choose a supported branched image model." },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
   if (!modelCatalog.videoModels.some((model) => model.value === videoModel)) {
     return Response.json(
-      { error: "Choose a supported video model." },
+      { error: "Choose a supported branched video model." },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -98,6 +127,8 @@ export async function POST(request: Request) {
     const generationInput = {
       prompt,
       duration,
+      inference_model: inferenceModel,
+      ...(inferenceModel === "gpt-5.6-sol" ? { effort: inferenceEffort } : {}),
       image_model: imageModel,
       video_model: videoModel,
       num_levels: numLevels,
@@ -108,10 +139,13 @@ export async function POST(request: Request) {
     console.info("[tmochi_creator] submitting interactive video", {
       draftSessionId: draftSessionId || null,
       numLevels,
+      inferenceModel,
+      inferenceEffort,
       imageModel,
       videoModel,
     });
-    const result = await authenticated.client.createV2TextToInteractiveVideo(
+    const result = await createCompatibleTextToInteractiveVideo(
+      authenticated.client,
       {
         ...generationInput,
         ...(draftSessionId ? { session_id: draftSessionId } : {}),

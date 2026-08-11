@@ -2,135 +2,178 @@
   <img src="public/tmochi-learn-logo.png" alt="TMochiLearn" width="96" />
 </p>
 
-<p align="center"><strong>Interactive educational videos that adapt to every choice.</strong></p>
+<h1 align="center">TMochiLearn</h1>
+
+<p align="center"><strong>Create a complete interactive educational video from one lesson brief.</strong></p>
 
 <p align="center">
   <a href="https://github.com/samsarone/TmochiLearn/actions/workflows/ci.yml"><img src="https://github.com/samsarone/TmochiLearn/actions/workflows/ci.yml/badge.svg" alt="Tests" /></a>
 </p>
 
-TMochiLearn turns a single topic into an interactive lesson with choices,
-alternate explanations, and outcomes shaped by the learner. Describe what you
-want to teach, choose how deeply it should branch, and generate a complete
-learning-path tree.
+TMochiLearn is a one-shot creator for educational, technical, and training
+content. A creator supplies one lesson brief, selects the generation models and
+choice depth, and TMochiLearn builds the narrative, every learning path, the rendered
+media, and an interactive player in one workflow.
 
-Every path belongs to one connected learning experience. Learners can explore
-different approaches, see the consequences of each choice, and build a deeper
-understanding of educational and technical subjects.
+Learners watch a continuous lesson and choose what to explore at each decision
+point. A lesson can contain one to three binary choice levels, producing two,
+four, or eight complete learning paths.
 
-<p>
-  <small>
-    Built with <a href="https://openai.com/codex/">Codex</a> using GPT 5.6 Sol in High and Ultra settings, with manual QA, verification, and code debugging.<br />
-    Submission for the <a href="https://openai.devpost.com/">OpenAI Devpost hackathon</a>.
-  </small>
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=uZgqEkFwF6I"><strong>Watch the app demo</strong></a>
 </p>
 
-## Don’t just watch. Explore.
+## What one generation creates
 
-A TMochiLearn lesson presents clear, focused video segments and lets the learner
-choose what to examine next.
+- A lesson narrative expanded into a complete binary learning tree
+- A deduplicated catalog of shared and path-specific scene layers
+- Rendered video, narration, music, and supporting audio for every route
+- A live learning-path map with scene and full-path previews
+- A resumable Creator Studio session at `/creator/[sessionId]`
+- A downloadable ZIP containing the interactive manifest and generated artifacts
+- An interactive publication that can be shared at `/watch/[publicationId]`
 
-- A subtle **Choose the next path** cue appears before each decision.
-- Learning-path previews transition naturally from the current topic.
-- Every choice continues from the same moment without losing sound or playback
-  settings.
-- Multi-level lessons remember the path already taken.
-- Shared lesson links open directly in the interactive player.
-- The public learning library makes published lessons easy to discover and replay.
+Published lessons appear in the public learning library at `/learn`.
 
-## One topic. Every learning path.
+## Creator workflow
 
-The Creator Studio is designed for educators, trainers, and technical creators.
+1. Sign in or register with a Samsar account. TMochiLearn creates a non-billable
+   draft session immediately.
+2. Enter a lesson brief of up to 4,000 characters and choose a target duration
+   from 30 to 180 seconds.
+3. Select the inference, image, and motion models, then choose one to three
+   levels of learner decisions.
+4. Submit once. The app creates the lesson narrative, generates every route, and
+   renders the unique media layers.
+5. Follow live progress, inspect the learning-path tree, and preview individual
+   scenes or complete routes.
+6. Download the artifact package or add publication details and publish the
+   finished lesson.
 
-1. **Describe your lesson** — start with a concept, process, skill, or scenario
-   learners should understand.
-2. **Choose the depth** — create a focused fork or a learning tree with up to three
-   levels of decisions.
-3. **Build the lesson** — follow live generation progress and see the learning-path
-   map fill with scenes.
-4. **Preview every route** — explore random paths or review the lesson choice by
-   choice.
-5. **Describe the lesson** — write the public details yourself or let TMochiLearn
-   generate a title and description.
-6. **Publish the experience** — release it to the TMochiLearn learning library or
-   download the complete artifact package.
+The default form uses a 30-second lesson and two choice levels, which creates
+four final paths. TMochiLearn uses a 16:9 interactive-video layout.
 
-## Made for interactive learning
+## Interactive generation model matrix
 
-- **Prompt-to-interactive-lesson creation** powered by Samsar
-- **One-to-three-level learning trees** with distinct branches and outcomes
-- **Live branch topology** that shows the structure as it is created
-- **Resumable sessions** so a lesson remains available at its own Creator URL
-- **Interactive previews** with media-accurate decision points
-- **Smart publishing metadata** generated from the completed lesson
-- **Transparent credit estimates and balances** throughout creation
-- **Downloadable production artifacts** for every rendered path
-- **A public learning library** with search, featured lessons, and shareable
-  watch links
+TMochiLearn does not use the account-level default model list. It loads the
+current Express catalog from `GET /video/supported_models` and only displays
+models advertised as compatible with interactive generation. The generation
+route fetches the catalog again and validates every selection before submitting
+the request.
 
-## Learning with more than one path
+| Stage | Model | Request value |
+| --- | --- | --- |
+| Inference | `gpt-5.6-sol` | `gpt-5.6-sol` with `effort: high` (default) or `effort: xhigh` |
+| Image | GPT Image 2 | `GPTIMAGE2` |
+| Image | Nano Banana Pro | `NANOBANANAPRO` |
+| Video | Nvidia Cosmos 3 | `COSMOS3SUPERI2V` |
+| Video | Veo 3.1 | `VEO3.1I2V` |
+| Video | Veo 3.1 Fast | `VEO3.1I2VFAST` |
+| Video | Seedance 2.0 | `SEEDANCE2.0I2V` |
 
-TMochiLearn is built around a simple belief: learners understand more when they
-actively explore. They can test an assumption, compare an approach, troubleshoot
-a system, or revisit a concept—and the lesson should respond to every decision.
+TMochiLearn always submits the selected inference model explicitly and ignores
+the user's account default. For direct API clients, omitting the inference model
+from the unified interactive request uses `gpt-5.6-sol` with `effort: high`.
+Use `effort: xhigh` for deeper technical analysis; legacy suffixed Sol model
+keys remain compatible.
 
-The result is an adaptive format for educational and technical content: structured
-enough to teach intentionally and flexible enough to support curiosity.
+The table is the supported matrix, not a guarantee that every model is available
+in every deployment. The runtime catalog is the source of truth.
 
-## Powered by Samsar
+## Render pricing
 
-TMochiLearn uses Samsar to create, render, resume, and publish branching lessons.
-Existing Samsar accounts work in the Creator Studio, and completed interactive
-publications flow into the same public catalog used by learners.
+Production render credits use one rule:
 
-## For contributors
+```text
+render credits = total unique rendered layer-seconds × video model rate
+```
 
-The project requires Node.js `>=22.13.0`.
+| Video model | Rate |
+| --- | ---: |
+| Nvidia Cosmos 3 | 20 credits/second |
+| Veo 3.1 | 60 credits/second |
+| Veo 3.1 Fast | 36 credits/second |
+| Seedance 2.0 | 40 credits/second |
+
+The total includes every distinct scene layer created for the interactive
+lesson. Shared scenes count once, and each choice-specific scene counts once.
+The selected rate covers the complete render pipeline; inference and image
+model selections do not add separate render charges.
+
+For example, 150 unique rendered layer-seconds with Nvidia Cosmos 3 costs
+`150 × 20 = 3,000 credits`.
+
+Before generation, TMochiLearn may show a conservative maximum because it does
+not yet know which scenes will be shared. The final charge uses the actual unique
+rendered duration and can be lower. Pipeline stages are settled individually,
+so fractional seconds may produce a small rounding difference. Only completed
+stages are charged, which can reduce the final charge if rendering stops early.
+
+## Production and standalone deployments
+
+| Behavior | Production | Standalone |
+| --- | --- | --- |
+| Model catalog | Full supported interactive catalog | Only interactive-compatible models available through configured providers |
+| Samsar credit admission | Requires an available credit balance | Bypassed |
+| Generation credit settlement | Stages debit Samsar credits | Zero Samsar credits; stage receipts are waived |
+| Provider cost | Covered by the Samsar credit rate | Paid directly by the deployment operator under each provider's pricing |
+| Creator availability | Requires at least one model for every pipeline stage | Same requirement; fails closed when a stage has no configured model |
+
+In standalone, provider credentials and adapters belong to the Samsar processor,
+not this frontend. TMochiLearn disables submission unless the runtime catalog
+contains at least one compatible inference model, one compatible image model,
+and one compatible video model. The production credit rates above are not standalone
+provider-price quotes. If the Creator displays the production comparison
+estimate in standalone, that number is informational and is not deducted.
+
+## Run locally
+
+Requirements:
+
+- Node.js `>=22.13.0`
+- npm
+- A reachable Samsar API deployment
+- A Samsar account/session for Creator Studio
 
 ```bash
-npm install
+cp .env.example .env.local
+npm ci
 npm run dev
 ```
 
-Run the same checks shown by the badge:
+Open `http://localhost:3000`. The default configuration connects to the public
+Samsar production API.
 
-```bash
-npm run lint
-npm test
-```
+### Environment variables
 
-`npm test` builds the Cloudflare Worker version and runs the existing Node.js
-integration suite against the rendered learning experience, shared player routes,
-Creator authentication, branching contracts, generation flow, and publishing
-tools.
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `SAMSAR_API_BASE_URL` | No | `https://api.samsar.one/v1` | Samsar API base URL, including the `/v1` path |
+| `SAMSAR_ARTIFACT_HOSTS` | No | Empty | Comma-separated HTTPS hostnames added to the artifact-download proxy allowlist |
 
-<details>
-<summary>Configuration and deployment notes</summary>
+Provider API keys are configured on the Samsar processor deployment and must not
+be added to the TMochiLearn frontend environment.
 
-The Samsar API defaults to `https://api.samsar.one/v1`. Set
-`SAMSAR_API_BASE_URL` to use another API origin. Creator requests use the
-signed-in user’s shared Samsar bearer session. Creator image and video options
-are loaded server-side from the public `/video/supported_models` Express model
-catalog and submissions are revalidated against that catalog. Additional
-artifact hosts can be provided with the comma-separated `SAMSAR_ARTIFACT_HOSTS`
-value.
+### Development commands
 
-To preview the local UI against the live production publication catalog, run:
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js development server |
+| `npm run dev:production-catalog` | Run locally against the public production catalog |
+| `npm run build` | Create the Next.js production build |
+| `npm start` | Serve the Next.js production build |
+| `npm run lint` | Run ESLint |
+| `npm test` | Build the Cloudflare Worker target and run the Node integration suite |
+| `npm run dev:worker` | Start the local vinext/Cloudflare Worker target |
+| `npm run build:worker` | Build the Cloudflare Worker target |
 
-```bash
-npm run dev:production-catalog
-```
+## Deployment
 
-This only reads the public production catalog for learners. Creator actions
-still require a signed-in Samsar session.
+The Next.js build uses standalone output and includes server rendering, route
+handlers, authentication, and request-derived social metadata. Vercel can use
+the Next.js framework preset with `npm run build`.
 
-For Vercel, use the Next.js framework preset and the standard `npm run build`
-output. The optional Cloudflare Worker workflow is available through
-`npm run dev:worker`, `npm run build:worker`, and `npm run start:worker`.
-
-### Docker and nginx
-
-The production image runs the full Next.js standalone server, including SSR,
-route handlers, authentication, and request-derived Open Graph metadata:
+Build and run the production container with:
 
 ```bash
 docker build -t tmochi-learn:latest .
@@ -139,44 +182,14 @@ docker run --rm -p 3001:3000 \
   tmochi-learn:latest
 ```
 
-`SAMSAR_API_BASE_URL` and the optional comma-separated
-`SAMSAR_ARTIFACT_HOSTS` setting are runtime variables and can be supplied by
-Docker Compose or the container platform. The server listens on
-`0.0.0.0:3000`, runs as an unprivileged user, and exposes `GET /api/health`.
+The container runs as an unprivileged user, listens on port `3000`, and exposes
+`GET /api/health`. When deploying behind nginx, use `nginx.conf.example` and
+forward `Host`, `X-Forwarded-Host`, and `X-Forwarded-Proto` so canonical and
+social URLs are generated correctly.
 
-The application and nginx must share a Docker network. A minimal Compose
-service looks like this:
+Cloudflare Worker builds are available through `npm run build:worker` and
+`npm run start:worker`.
 
-```yaml
-services:
-  tmochi-learn:
-    image: tmochi-learn:latest
-    build:
-      context: .
-    environment:
-      SAMSAR_API_BASE_URL: https://api.samsar.one/v1
-    expose:
-      - "3000"
-    restart: unless-stopped
-    networks:
-      - web
+## License
 
-networks:
-  web:
-```
-
-`nginx.conf.example` contains the matching upstream and forwarded headers.
-Replace its catch-all `server_name` with the production hostname in the
-TLS-enabled configuration. Forwarding `Host`, `X-Forwarded-Host`, and
-`X-Forwarded-Proto` is required because TMochiLearn uses them to generate
-absolute canonical and social metadata.
-
-</details>
-
-<h2 align="center">Demo</h2>
-
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=uZgqEkFwF6I" target="_blank" rel="noopener noreferrer"><img src="https://img.youtube.com/vi/uZgqEkFwF6I/hqdefault.jpg" alt="Play the TMochiLearn app demo" width="640" /></a>
-</p>
-
-<p align="center"><em>App demo screencast created with Codex using GPT 5.6 Ultra settings.</em></p>
+TMochiLearn is available under the [MIT License](LICENSE).
