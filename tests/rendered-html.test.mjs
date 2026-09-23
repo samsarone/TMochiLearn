@@ -12,8 +12,8 @@ test("filters the Creator catalog to canonical models and preserves legacy Sol e
   );
   const catalog = createCreatorModelCatalog({
     INFERENCE_MODELS: [
-      { value: "gpt-5.6-sol", label: "Wrong fallback label", isBranchedInferenceModel: true },
-      { value: "gpt-5.6-sol-xhigh", isBranchedInferenceModel: true },
+      { value: "gpt-6-astra", label: "Wrong fallback label", isBranchedInferenceModel: true },
+      { value: "gpt-6-astra-xhigh", isBranchedInferenceModel: true },
       { value: "gemini-3.1-pro", isBranchedInferenceModel: false },
       { value: "unflagged-inference" },
     ],
@@ -42,7 +42,7 @@ test("filters the Creator catalog to canonical models and preserves legacy Sol e
   assert.deepEqual(
     catalog.inferenceModels.map(({ value, label }) => ({ value, label })),
     [
-      { value: "gpt-5.6-sol", label: "gpt-5.6-sol" },
+      { value: "gpt-6-astra", label: "gpt-6-astra" },
     ],
   );
   assert.deepEqual(catalog.imageModels.map((model) => model.value), [
@@ -59,10 +59,10 @@ test("filters the Creator catalog to canonical models and preserves legacy Sol e
     catalog.videoModels.map((model) => model.creditsPerSecond),
     [20, 60, 36, 40],
   );
-  assert.equal(normalizeCreatorInferenceModel("gpt-5.6-sol-high"), "gpt-5.6-sol");
-  assert.equal(normalizeCreatorInferenceModel("gpt-5.6-sol-xhigh"), "gpt-5.6-sol");
-  assert.equal(inferCreatorInferenceEffort("gpt-5.6-sol-xhigh"), "xhigh");
-  assert.equal(inferCreatorInferenceEffort("gpt-5.6-sol-xhigh", "high"), "high");
+  assert.equal(normalizeCreatorInferenceModel("gpt-6-astra-high"), "gpt-6-astra");
+  assert.equal(normalizeCreatorInferenceModel("gpt-6-astra-xhigh"), "gpt-6-astra");
+  assert.equal(inferCreatorInferenceEffort("gpt-6-astra-xhigh"), "xhigh");
+  assert.equal(inferCreatorInferenceEffort("gpt-6-astra-xhigh", "high"), "high");
 });
 
 test("preserves empty standalone Creator model lists as valid availability", async () => {
@@ -107,7 +107,7 @@ test("submits newly catalogued interactive models through the installed SDK", as
   const input = {
     prompt: "An adaptive systems lesson",
     duration: 30,
-    inference_model: "gpt-5.6-sol",
+    inference_model: "gpt-6-astra",
     effort: "xhigh",
     image_model: "GPTIMAGE2",
     video_model: "SEEDANCE2.0I2V",
@@ -159,7 +159,7 @@ test("does not retry API errors through the interactive model compatibility path
     () => createCompatibleTextToInteractiveVideo(client, {
       prompt: "An adaptive systems lesson",
       duration: 30,
-      inference_model: "gpt-5.6-sol",
+      inference_model: "gpt-6-astra",
       effort: "xhigh",
       image_model: "GPTIMAGE2",
       video_model: "SEEDANCE2.0I2V",

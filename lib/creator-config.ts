@@ -63,24 +63,32 @@ export type CreatorModelCatalog = {
 // availability and request validation always come from Samsar's public Express
 // model catalog.
 const INFERENCE_MODEL_PRESENTATION: Record<string, { label: string; detail: string; order: number }> = {
-  "gpt-5.6-sol": {
-    label: "gpt-5.6-sol",
-    detail: "GPT 5.6 Sol inference",
+  "gpt-6-astra": {
+    label: "gpt-6-astra",
+    detail: "GPT 6 Astra inference",
     order: 1,
   },
 };
 
 const GPT_56_SOL_HIGH_TOKENS = new Set([
   "GPT56",
+  "GPT6",
   "GPT56SOL",
+  "GPT6ASTRA",
   "GPT56HIGH",
+  "GPT6HIGH",
   "GPT56SOLHIGH",
+  "GPT6ASTRAHIGH",
 ]);
 const GPT_56_SOL_XHIGH_TOKENS = new Set([
   "GPT56XHIGH",
+  "GPT6XHIGH",
   "GPT56SOLXHIGH",
+  "GPT6ASTRAXHIGH",
   "GPT56EXTRAHIGH",
+  "GPT6EXTRAHIGH",
   "GPT56SOLEXTRAHIGH",
+  "GPT6ASTRAEXTRAHIGH",
 ]);
 
 function inferenceModelToken(value: unknown) {
@@ -94,7 +102,7 @@ export function normalizeCreatorInferenceModel(value: unknown) {
   const trimmed = value.trim();
   const token = inferenceModelToken(trimmed);
   return GPT_56_SOL_HIGH_TOKENS.has(token) || GPT_56_SOL_XHIGH_TOKENS.has(token)
-    ? "gpt-5.6-sol"
+    ? "gpt-6-astra"
     : trimmed;
 }
 

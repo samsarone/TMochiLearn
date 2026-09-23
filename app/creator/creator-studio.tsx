@@ -663,7 +663,7 @@ export default function CreatorStudio({
               inferenceModel: initialInferenceModels.some((model) => model.value === normalizedNextInferenceModel)
                 ? normalizedNextInferenceModel
                 : current.inferenceModel,
-              inferenceEffort: normalizedNextInferenceModel === "gpt-5.6-sol"
+              inferenceEffort: normalizedNextInferenceModel === "gpt-6-astra"
                 ? inferCreatorInferenceEffort(nextInferenceModel, nextInferenceEffort)
                 : current.inferenceEffort,
               imageModel: initialImageModels.some((model) => model.value === nextImageModel)
@@ -773,7 +773,7 @@ export default function CreatorStudio({
         prompt: form.prompt.trim(),
         duration: form.duration,
         inference_model: form.inferenceModel,
-        ...(form.inferenceModel === "gpt-5.6-sol" ? { effort: form.inferenceEffort } : {}),
+        ...(form.inferenceModel === "gpt-6-astra" ? { effort: form.inferenceEffort } : {}),
         image_model: form.imageModel,
         video_model: form.videoModel,
         num_levels: form.levels,
@@ -1155,7 +1155,7 @@ export default function CreatorStudio({
                     <ChevronDown size={14} />
                   </div>
                 </label>
-                {form.inferenceModel === "gpt-5.6-sol" && (
+                {form.inferenceModel === "gpt-6-astra" && (
                   <label>
                     <span>Inference effort</span>
                     <div className={styles.selectWrap}>

@@ -1,5 +1,4 @@
 import type {
-  ExternalNarrativeInferenceModel,
   ExternalNarrativeVideoModel,
   TextToInteractiveVideoImageModel,
 } from "samsar-js";
@@ -46,7 +45,7 @@ export async function POST(request: Request) {
   const rawInferenceModel = stringValue(body.inference_model ?? body.inferenceModel);
   const inferenceModel = normalizeCreatorInferenceModel(
     rawInferenceModel,
-  ) as ExternalNarrativeInferenceModel;
+  );
   const rawInferenceEffort = body.effort ?? body.reasoning_effort ?? body.reasoningEffort;
   const explicitInferenceEffort = normalizeCreatorInferenceEffort(rawInferenceEffort);
   const inferenceEffort = inferCreatorInferenceEffort(
@@ -128,7 +127,7 @@ export async function POST(request: Request) {
       prompt,
       duration,
       inference_model: inferenceModel,
-      ...(inferenceModel === "gpt-5.6-sol" ? { effort: inferenceEffort } : {}),
+      ...(inferenceModel === "gpt-6-astra" ? { effort: inferenceEffort } : {}),
       image_model: imageModel,
       video_model: videoModel,
       num_levels: numLevels,
